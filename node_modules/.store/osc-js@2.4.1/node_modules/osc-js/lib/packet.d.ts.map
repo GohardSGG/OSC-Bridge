@@ -1,0 +1,1 @@
+{"version":3,"file":"packet.d.ts","sourceRoot":"","sources":["../src/packet.js"],"names":[],"mappings":"AAIA;;;GAGG;AACH;IACE;;;OAGG;IACH,oBAFW,OAAO,GAAC,MAAM,EAcxB;IAPC,mCAAmC;IACnC,OADW,OAAO,GAAC,MAAM,CACP;IAClB;;;OAGG;IACH,eAAe;IAGjB;;;;;;;;;;;;;OAaG;IACH,QAVY,UAAU,CAgBrB;IAED;;;;;OAKG;IACH,iBAJW,QAAQ,kBACR,MAAM,GACL,MAAM,CA6BjB;CACF;oBAjFmB,WAAW;mBADI,UAAU"}

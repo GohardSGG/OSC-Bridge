@@ -1,0 +1,20 @@
+{
+  "name": "osc-bridge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "osc-bridge.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dgram": "^1.0.1",
+    "express": "^4.21.2",
+    "lodash-es": "^4.17.21",
+    "osc-js": "^2.4.1",
+    "ws": "^8.18.1"
+  }
+}
