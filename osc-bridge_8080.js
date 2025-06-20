@@ -88,6 +88,11 @@ async function ensurePresetsDir() {
   }
 }
 
+app.get('*', (req, res) => {
+  console.log('收到未处理请求:', req.originalUrl);
+  res.status(404).send('Not Found');
+});
+
 // 获取预设
 app.get('/presets/:role', async (req, res) => {
   await ensurePresetsDir();

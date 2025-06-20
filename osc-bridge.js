@@ -9,6 +9,7 @@ const express = require('express');
 const dgram = require('dgram');
 const fs = require('fs/promises');
 const path = require('path');
+const OSC = require('osc-js'); // 引入 osc-js
 
 // ===================== 配置 =====================
 const HTTP_PORT = 9122;               // WebSocket服务端口
@@ -21,6 +22,9 @@ const TARGET_IP = '127.0.0.1';    // 目标设备IP
 const app = express();
 const udpClient = dgram.createSocket('udp4');  // 发送客户端
 const udpServer = dgram.createSocket('udp4');  // 接收服务端
+const osc = new OSC(); // 创建osc实例用于解析消息
+let wsClientId = 0; // WebSocket客户端ID计数器
+
 // 添加 CORS 支持
 // 替换原有简单CORS配置
 app.use((req, res, next) => {
@@ -36,6 +40,11 @@ app.use((req, res, next) => {
   }
 });
 
+//app.get('*', (req, res) => {
+//  console.log('收到未处理请求:', req.originalUrl);
+//  res.status(404).send('Not Found');
+//});
+
 app.use(express.json());
 // ===================== UDP 服务 =====================
 // 启动UDP监听
@@ -45,15 +54,38 @@ udpServer.bind(UDP_LISTEN_PORT, () => {
 
 // 处理收到的OSC消息
 udpServer.on('message', (msg, rinfo) => {
-  console.log(`← 收到 OSC 消息 [${rinfo.address}:${rinfo.port}] ${msg.length}字节`);
-  
+  try {
+    const dataView = new DataView(msg.buffer, msg.byteOffset, msg.byteLength);
+    const message = new OSC.Message();
+    message.unpack(dataView);
+    if (message.address) { // 单条消息
+      const argsString = message.args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(', ');
+      console.log(`← 收到 OSC [${rinfo.address}:${rinfo.port}] | 地址: ${message.address} | 值: ${argsString}`);
+    } else { // OSC Bundle
+      console.log(`← 收到 OSC Bundle [${rinfo.address}:${rinfo.port}]`);
+      message.packets.forEach((packet, i) => {
+        const argsString = packet.args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(', ');
+        console.log(`  - 包 #${i + 1}: 地址: ${packet.address} | 值: ${argsString}`);
+      });
+    }
+  } catch (error) {
+    console.error(`← [!] 收到无法解析的OSC消息 [${rinfo.address}:${rinfo.port}] (${msg.length}字节)`);
+    console.error(`  - 错误详情: ${error.message}`);
+    console.error(`  - 原始消息 (Hex): ${msg.toString('hex')}`);
+  }
+
   // 广播给所有WebSocket客户端
+  let forwardedCount = 0;
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(msg);
-      console.log(`✅ 收到UDP消息转发成功（${msg.length}字节）`);
+      forwardedCount++;
     }
   });
+
+  if (forwardedCount > 0) {
+    console.log(`✅ 已将UDP消息转发给 ${forwardedCount} 个WebSocket客户端`);
+  }
 });
 // ===================== WebSocket 服务 =====================
 const server = app.listen(HTTP_PORT, '0.0.0.0', () => {
@@ -65,16 +97,39 @@ const server = app.listen(HTTP_PORT, '0.0.0.0', () => {
 // WebSocket服务
 const wss = new WebSocket.Server({ server });
 wss.on('connection', (ws) => {
-  console.log('📡 客户端已连接');
+  ws.id = ++wsClientId;
+  console.log(`📡 客户端 #${ws.id} 已连接`);
 
   ws.on('message', (msg) => {
     // 转发到目标UDP端口
     udpClient.send(msg, UDP_TARGET_PORT, TARGET_IP, (err) => {
-      err ? console.error('❌ 转发失败:', err) : console.log(`✅ 收到WS消息并转发成功（${msg.length}字节）`);
+      if (err) {
+        console.error(`❌ [WS #${ws.id}] 转发失败:`, err);
+        return;
+      }
+      try {
+        const dataView = new DataView(msg.buffer, msg.byteOffset, msg.byteLength);
+        const message = new OSC.Message();
+        message.unpack(dataView);
+        if (message.address) { // 单条消息
+          const argsString = message.args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(', ');
+          console.log(`→ [WS #${ws.id}] 转发 OSC 到 [${TARGET_IP}:${UDP_TARGET_PORT}] | 地址: ${message.address} | 值: ${argsString}`);
+        } else { // OSC Bundle
+          console.log(`→ [WS #${ws.id}] 转发 OSC Bundle 到 [${TARGET_IP}:${UDP_TARGET_PORT}]`);
+          message.packets.forEach((packet, i) => {
+            const argsString = packet.args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(', ');
+            console.log(`  - 包 #${i + 1}: 地址: ${packet.address} | 值: ${argsString}`);
+          });
+        }
+      } catch (error) {
+        console.warn(`→ [WS #${ws.id}] 转发了无法解析的WS消息到UDP (${msg.length}字节)`);
+        console.warn(`  - 错误详情: ${error.message}`);
+        console.warn(`  - 原始消息 (Hex): ${msg.toString('hex')}`);
+      }
     });
   });
 
-  ws.on('close', () => console.log('📡 客户端断开连接'));
+  ws.on('close', () => console.log(`📡 客户端 #${ws.id} 断开连接`));
 });
 
 // 确保预设目录存在

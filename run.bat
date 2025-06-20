@@ -1,4 +1,4 @@
 @echo off
-cd /d "C:\Web\Vue\Reaper Web\OSC-Bridge"
+cd /d "C:\Code\OSC-Bridge"
 node osc-bridge.js
 pause
