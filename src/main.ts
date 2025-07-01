@@ -10,7 +10,6 @@ interface LogEntry {
 
 // ===================== 全局变量 =====================
 let websocket: WebSocket | null = null;
-let osc: OSC;
 let isAutoScroll = true;
 
 // DOM 元素引用
@@ -28,7 +27,6 @@ window.addEventListener('DOMContentLoaded', () => {
   console.log('OSC Bridge 控制面板正在初始化...');
   
   initializeElements();
-  initializeOSC();
   setupEventListeners();
   connectWebSocket();
 });
@@ -51,11 +49,6 @@ function initializeElements() {
   
   // 初始化托盘配置
   initTrayConfig();
-}
-
-function initializeOSC() {
-  // 初始化 OSC.js 实例，用于消息的打包和解析
-  osc = new OSC();
 }
 
 function setupEventListeners() {
@@ -392,8 +385,8 @@ function createLogElement(entry: LogEntry): HTMLElement {
   logElement.appendChild(messageElement);
   
   return logElement;
-}
-
+  }
+  
 // 限制日志条目数量
 function limitLogEntries(container: HTMLElement) {
   const maxLogEntries = 500;
@@ -403,10 +396,7 @@ function limitLogEntries(container: HTMLElement) {
   }
 }
 
-// 保留原有的addLogEntry函数用于兼容（现在重定向到系统日志）
-function addLogEntry(entry: LogEntry) {
-  addSystemLog(entry);
-}
+// addLogEntry函数已移除，直接使用addSystemLog
 
 // ===================== 托盘配置管理 =====================
 
@@ -422,47 +412,47 @@ async function getTrayConfig() {
   }
 }
 
-// 设置自启动
-async function setAutoStart(enabled: boolean) {
-  try {
-    // @ts-ignore
-    await window.__TAURI__.core.invoke('set_auto_start', { enabled });
-    // @ts-ignore
-    await window.__TAURI__.core.invoke('save_config');
-    addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'info',
-      message: `✅ 开机自启已${enabled ? '启用' : '禁用'}`
-    });
-  } catch (error) {
-    addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'error',
-      message: `❌ 设置开机自启失败: ${error}`
-    });
-  }
-}
+// 设置自启动（暂时未使用）
+// async function setAutoStart(enabled: boolean) {
+//   try {
+//     // @ts-ignore
+//     await window.__TAURI__.core.invoke('set_auto_start', { enabled });
+//     // @ts-ignore
+//     await window.__TAURI__.core.invoke('save_config');
+//     addSystemLog({
+//       timestamp: getCurrentTimestamp(),
+//       type: 'info',
+//       message: `✅ 开机自启已${enabled ? '启用' : '禁用'}`
+//     });
+//   } catch (error) {
+//     addSystemLog({
+//       timestamp: getCurrentTimestamp(),
+//       type: 'error',
+//       message: `❌ 设置开机自启失败: ${error}`
+//     });
+//   }
+// }
 
-// 设置静默启动
-async function setSilentStart(enabled: boolean) {
-  try {
-    // @ts-ignore
-    await window.__TAURI__.core.invoke('set_silent_start', { enabled });
-    // @ts-ignore
-    await window.__TAURI__.core.invoke('save_config');
-    addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'info',
-      message: `✅ 静默启动已${enabled ? '启用' : '禁用'}`
-    });
-  } catch (error) {
-    addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'error',
-      message: `❌ 设置静默启动失败: ${error}`
-    });
-  }
-}
+// 设置静默启动（暂时未使用）
+// async function setSilentStart(enabled: boolean) {
+//   try {
+//     // @ts-ignore
+//     await window.__TAURI__.core.invoke('set_silent_start', { enabled });
+//     // @ts-ignore
+//     await window.__TAURI__.core.invoke('save_config');
+//     addSystemLog({
+//     timestamp: getCurrentTimestamp(),
+//     type: 'info',
+//       message: `✅ 静默启动已${enabled ? '启用' : '禁用'}`
+//     });
+//   } catch (error) {
+//     addSystemLog({
+//       timestamp: getCurrentTimestamp(),
+//       type: 'error',
+//       message: `❌ 设置静默启动失败: ${error}`
+//     });
+//   }
+// }
 
 // 初始化托盘配置
 async function initTrayConfig() {

@@ -3,6 +3,61 @@ use tauri::{AppHandle, Manager, State};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use auto_launch::AutoLaunch;
+use std::process::{Command, Child};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+// 启动后端Node.js进程
+fn start_backend_process() -> Option<Child> {
+    // 获取当前exe所在目录
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let script_path = exe_dir.join("osc-bridge.cjs");
+            
+            println!("尝试启动后端脚本: {:?}", script_path);
+            
+            // 尝试启动Node.js进程
+            let mut cmd = Command::new("node");
+            cmd.arg(&script_path).current_dir(exe_dir);
+            
+            #[cfg(windows)]
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW on Windows
+            
+            match cmd.spawn()
+            {
+                Ok(child) => {
+                    println!("后端脚本启动成功，PID: {}", child.id());
+                    return Some(child);
+                }
+                Err(e) => {
+                    eprintln!("启动后端脚本失败: {}", e);
+                    
+                    // 如果node命令不存在，尝试使用完整路径
+                    if let Ok(node_path) = which::which("node") {
+                        println!("尝试使用完整Node.js路径: {:?}", node_path);
+                        let mut cmd2 = Command::new(&node_path);
+                        cmd2.arg(&script_path).current_dir(exe_dir);
+                        
+                        #[cfg(windows)]
+                        cmd2.creation_flags(0x08000000);
+                        
+                        match cmd2.spawn()
+                        {
+                            Ok(child) => {
+                                println!("后端脚本启动成功（完整路径），PID: {}", child.id());
+                                return Some(child);
+                            }
+                            Err(e2) => {
+                                eprintln!("使用完整路径启动也失败: {}", e2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
 // 应用配置结构
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -24,6 +79,7 @@ impl Default for AppConfig {
 struct AppState {
     config: Mutex<AppConfig>,
     auto_launch: Mutex<Option<AutoLaunch>>,
+    backend_process: Mutex<Option<std::process::Child>>,
 }
 
 #[tauri::command]
@@ -203,6 +259,9 @@ pub fn run() {
             // 加载配置
             let config = load_config(&app.handle());
             
+            // 启动后端脚本
+            let backend_process = start_backend_process();
+            
             // 创建自启动实例（如果启用静默启动，添加启动参数）
             let args = if config.silent_start {
                 vec!["--silent"]
@@ -220,6 +279,7 @@ pub fn run() {
             let app_state = AppState {
                 config: Mutex::new(config.clone()),
                 auto_launch: Mutex::new(Some(auto_launch)),
+                backend_process: Mutex::new(backend_process),
             };
             app.manage(app_state);
             
@@ -266,6 +326,13 @@ pub fn run() {
                     
                     match event.id.as_ref() {
                         "quit" => {
+                            // 清理后端进程
+                            if let Ok(mut backend_process) = app_state.backend_process.lock() {
+                                if let Some(mut child) = backend_process.take() {
+                                    let _ = child.kill();
+                                    println!("后端进程已终止");
+                                }
+                            }
                             app.exit(0);
                         }
                         "show" => {
