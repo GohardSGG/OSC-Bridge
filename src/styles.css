@@ -1,0 +1,707 @@
+/* ===================== 新拟物化设计系统 ===================== */
+
+:root {
+  /* 暗黑新拟物化配色方案 */
+  --bg-primary: #2c2f36;
+  --bg-secondary: #363a42;
+  --bg-tertiary: #404651;
+  
+  /* 阴影系统 */
+  --shadow-light: #434954;
+  --shadow-dark: #1e2025;
+  --shadow-inset-light: #3d434f;
+  --shadow-inset-dark: #232730;
+  
+  /* 文字颜色 */
+  --text-primary: #e2e8f0;
+  --text-secondary: #a0aec0;
+  --text-muted: #718096;
+  
+  /* 强调色 */
+  --accent-blue: #667eea;
+  --accent-green: #48bb78;
+  --accent-red: #f56565;
+  --accent-orange: #ed8936;
+  --accent-purple: #9f7aea;
+  
+  /* 新拟物化阴影组合 */
+  --neumorphism-raised: 
+    9px 9px 16px var(--shadow-dark),
+    -9px -9px 16px var(--shadow-light);
+  --neumorphism-pressed: 
+    inset 6px 6px 12px var(--shadow-inset-dark),
+    inset -6px -6px 12px var(--shadow-inset-light);
+  --neumorphism-soft: 
+    5px 5px 10px var(--shadow-dark),
+    -5px -5px 10px var(--shadow-light);
+}
+
+/* ===================== 全局样式 ===================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #2c2f36 0%, #363a42 100%);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ===================== 头部状态栏 ===================== */
+
+.header {
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  padding: 0.75rem 1.5rem;
+  box-shadow: var(--neumorphism-soft);
+  border-radius: 0 0 15px 15px;
+  margin: 8px 8px 0 8px;
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: center;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  box-shadow: var(--neumorphism-soft);
+  transition: all 0.3s ease;
+}
+
+.status-indicator.connected {
+  background: var(--accent-green);
+  box-shadow: 
+    0 0 15px rgba(72, 187, 120, 0.3),
+    var(--neumorphism-soft);
+}
+
+.status-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ===================== 主内容区域 ===================== */
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  gap: 1.2rem;
+  padding: 1.2rem;
+  overflow: hidden;
+}
+
+/* ===================== 左侧主面板 ===================== */
+
+.main-panel {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.card {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--neumorphism-raised);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+}
+
+.card h4 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1.2rem;
+  text-align: center;
+}
+
+/* ===================== 表单样式 ===================== */
+
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg-primary);
+  box-shadow: var(--neumorphism-pressed);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  box-shadow: 
+    var(--neumorphism-pressed),
+    0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* ===================== 按钮样式 ===================== */
+
+.btn {
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--neumorphism-raised);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    8px 8px 15px var(--shadow-dark),
+    -8px -8px 15px var(--shadow-light);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: var(--neumorphism-pressed);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-blue), #764ba2);
+  color: white;
+  box-shadow: 
+    6px 6px 12px rgba(102, 126, 234, 0.2),
+    -6px -6px 12px rgba(255, 255, 255, 0.8);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--accent-red), #c53030);
+  color: white;
+  box-shadow: 
+    6px 6px 12px rgba(245, 101, 101, 0.2),
+    -6px -6px 12px rgba(255, 255, 255, 0.8);
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+}
+
+/* ===================== 快速操作按钮 ===================== */
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+}
+
+.quick-btn {
+  padding: 0.8rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--neumorphism-soft);
+  font-size: 0.9rem;
+}
+
+.quick-btn:hover {
+  background: linear-gradient(135deg, var(--accent-purple), #805ad5);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.quick-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--neumorphism-pressed);
+}
+
+/* ===================== 系统日志卡片 ===================== */
+
+.system-log-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.system-log-card .log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+  margin-bottom: 0;
+}
+
+.system-log-card .log-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex: 1;
+  text-align: center;
+}
+
+.system-log-card .log-container {
+  flex: 1;
+  background: var(--bg-primary);
+  border-radius: 0 0 12px 12px;
+  box-shadow: var(--neumorphism-pressed);
+  margin-top: 0;
+}
+
+/* ===================== 右侧侧边栏 ===================== */
+
+.side-panel {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 1.2rem;
+  box-shadow: var(--neumorphism-raised);
+}
+
+.log-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-primary);
+  border-radius: 10px;
+  box-shadow: var(--neumorphism-soft);
+}
+
+.log-controls h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: var(--bg-secondary);
+  box-shadow: var(--neumorphism-pressed);
+  cursor: pointer;
+}
+
+/* ===================== 日志窗口 ===================== */
+
+.log-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: var(--neumorphism-pressed);
+}
+
+/* 移除了原来的 .log-column h3 样式，现在使用 .log-header h3 */
+
+.log-container {
+  flex-grow: 1;
+  padding: 0.8rem;
+  overflow-y: auto;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+/* ===================== 日志条目 ===================== */
+
+.log-entry {
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  margin-bottom: 0.25rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  background: transparent;
+  border-left: 2px solid transparent;
+}
+
+.log-entry:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(2px);
+}
+
+.log-entry.sent {
+  border-left-color: var(--accent-blue);
+}
+
+.log-entry.received {
+  border-left-color: var(--accent-green);
+}
+
+.log-entry.error {
+  border-left-color: var(--accent-red);
+}
+
+.log-entry.warning {
+  border-left-color: var(--accent-orange);
+}
+
+.log-entry.info {
+  border-left-color: var(--accent-purple);
+}
+
+.timestamp {
+  color: var(--text-muted);
+  margin-right: 0.8rem;
+  flex-shrink: 0;
+  min-width: 70px;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.message {
+  flex: 1;
+  word-break: break-word;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.direction-indicator {
+  margin-right: 0.4rem;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.sent .direction-indicator {
+  color: var(--accent-blue);
+}
+
+.received .direction-indicator {
+  color: var(--accent-green);
+}
+
+/* ===================== 滚动条样式 ===================== */
+
+.log-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 10px;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  border-radius: 10px;
+  box-shadow: var(--neumorphism-soft);
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+}
+
+/* ===================== 响应式设计 ===================== */
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+  
+  .log-controls {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+}
+
+/* ===================== 动画效果 ===================== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.log-entry {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* ===================== 日志头部和清除按钮 ===================== */
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+}
+
+.log-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.log-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.log-controls-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  box-shadow: var(--neumorphism-pressed);
+  padding: 0.2rem;
+  gap: 0.2rem;
+}
+
+.search-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  width: 120px;
+  outline: none;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.search-input:focus {
+  background: rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.search-btn, .clear-search-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.search-btn:hover {
+  color: var(--accent-blue);
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.clear-search-btn:hover {
+  color: var(--accent-red);
+  background: rgba(245, 101, 101, 0.1);
+}
+
+.search-btn:active, .clear-search-btn:active {
+  transform: scale(0.95);
+}
+
+.clear-icon-btn {
+  background: var(--bg-primary);
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+  box-shadow: var(--neumorphism-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.clear-icon-btn:hover {
+  color: var(--accent-red);
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+  transform: translateY(-1px);
+  box-shadow: 
+    4px 4px 8px var(--shadow-dark),
+    -4px -4px 8px var(--shadow-light);
+}
+
+.clear-icon-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--neumorphism-pressed);
+}
+
+.clear-icon-btn svg {
+  transition: all 0.3s ease;
+}
+
+.clear-icon-btn:hover svg {
+  stroke: var(--accent-red);
+  stroke-width: 2.5;
+}
+
+/* ===================== 搜索高亮样式 ===================== */
+
+.log-entry.filtered-out {
+  display: none;
+}
+
+.log-entry .highlight {
+  background: rgba(102, 126, 234, 0.3);
+  color: var(--text-primary);
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* 搜索统计信息 */
+.search-stats {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(135deg, var(--accent-blue), rgba(102, 126, 234, 0.8));
+  border-radius: 8px;
+  margin: 0.5rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+.search-stats-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.search-icon {
+  margin-right: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.search-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===================== 加载状态 ===================== */
+
+.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}

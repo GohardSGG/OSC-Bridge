@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OSC Bridge - 控制面板</title>
+
+  </head>
+
+  <body>
+    <div class="container">
+      <header class="header">
+        <div class="status-item">
+          <span class="status-indicator" id="ws-status"></span>
+          <span>WebSocket: </span>
+          <span id="ws-status-text">未连接</span>
+        </div>
+        <div class="status-item">
+          <span>监听端口: 7879, 9222</span>
+        </div>
+        <div class="status-item">
+          <span>转发目标: 127.0.0.1:7878, 127.0.0.1:9223</span>
+        </div>
+      </header>
+
+      <div class="main-content">
+        <!-- 左侧主面板 -->
+        <div class="main-panel">
+          <div class="card">
+            <form id="osc-form">
+              <div class="form-group">
+                <label for="osc-address">OSC 地址</label>
+                <input type="text" id="osc-address" value="/track/1/volume">
+              </div>
+              <div class="form-group">
+                <label for="osc-args">参数 (以逗号分隔)</label>
+                <input type="text" id="osc-args" value="0.75">
+              </div>
+              <button type="submit" class="btn btn-primary">发送</button>
+            </form>
+          </div>
+          
+          <!-- 系统日志区域 -->
+          <div class="card system-log-card">
+            <div class="log-header">
+              <h4>系统日志</h4>
+              <button id="clear-system-log" class="clear-icon-btn" title="清除系统日志">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3,6 5,6 21,6"></polyline>
+                  <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1 2-2h4a2,2 0 0,1 2,2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
+            </div>
+            <div id="system-log-container" class="log-container"></div>
+          </div>
+        </div>
+
+        <!-- 右侧OSC日志侧边栏 -->
+        <div class="side-panel">
+          <div class="log-controls">
+            <h4>OSC 消息日志</h4>
+            <div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="auto-scroll" checked>
+                自动滚动
+              </label>
+            </div>
+          </div>
+          <div class="log-column">
+            <div class="log-header">
+              <h3>发送 OSC (→)</h3>
+              <div class="log-controls-inline">
+                <div class="search-box">
+                  <input type="text" id="sent-search" class="search-input" placeholder="搜索... (支持多关键词)" title="搜索发送日志，支持空格分隔多个关键词">
+                  <button id="sent-search-btn" class="search-btn" title="搜索">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                  </button>
+                  <button id="sent-clear-search" class="clear-search-btn" title="清除搜索" style="display: none;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <button id="clear-sent-log" class="clear-icon-btn" title="清除发送日志">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3,6 5,6 21,6"></polyline>
+                    <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1 2-2h4a2,2 0 0,1 2,2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div id="sent-log-container" class="log-container"></div>
+          </div>
+          <div class="log-column">
+            <div class="log-header">
+              <h3>接收 OSC (←)</h3>
+              <div class="log-controls-inline">
+                <div class="search-box">
+                  <input type="text" id="received-search" class="search-input" placeholder="搜索... (支持多关键词)" title="搜索接收日志，支持空格分隔多个关键词">
+                  <button id="received-search-btn" class="search-btn" title="搜索">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                  </button>
+                  <button id="received-clear-search" class="clear-search-btn" title="清除搜索" style="display: none;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <button id="clear-received-log" class="clear-icon-btn" title="清除接收日志">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3,6 5,6 21,6"></polyline>
+                    <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1 2-2h4a2,2 0 0,1 2,2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div id="received-log-container" class="log-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 存储原始日志数据
+      let sentLogData = [];
+      let receivedLogData = [];
+      let systemLogData = [];
+
+      // 搜索状态
+      let sentSearchTerm = '';
+      let receivedSearchTerm = '';
+
+      // WebSocket 连接
+      let ws;
+      let reconnectInterval;
+
+      // 获取DOM元素
+      const systemLogContainer = document.getElementById('system-log-container');
+      const sentLogContainer = document.getElementById('sent-log-container');
+      const receivedLogContainer = document.getElementById('received-log-container');
+      const clearSystemLogBtn = document.getElementById('clear-system-log');
+      const clearSentLogBtn = document.getElementById('clear-sent-log');
+      const clearReceivedLogBtn = document.getElementById('clear-received-log');
+      
+      // 状态指示器元素
+      const wsStatusIndicator = document.getElementById('ws-status');
+      const wsStatusText = document.getElementById('ws-status-text');
+      
+      // 搜索相关元素
+      const sentSearchInput = document.getElementById('sent-search');
+      const sentSearchBtn = document.getElementById('sent-search-btn');
+      const sentClearSearchBtn = document.getElementById('sent-clear-search');
+      const receivedSearchInput = document.getElementById('received-search');
+      const receivedSearchBtn = document.getElementById('received-search-btn');
+      const receivedClearSearchBtn = document.getElementById('received-clear-search');
+
+      // 创建日志元素
+      function createLogElement(message, isOSC = false) {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        
+        const timestamp = new Date().toLocaleTimeString('zh-CN', { 
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        
+        logEntry.innerHTML = `
+          <span class="log-time">[${timestamp}]</span>
+          <span class="log-message">${message}</span>
+        `;
+        
+        return logEntry;
+      }
+
+      // 解析搜索关键词（支持多关键词空格分隔）
+      function parseSearchTerms(searchTerm) {
+        if (!searchTerm) return [];
+        return searchTerm.trim().split(/\s+/).filter(term => term.length > 0);
+      }
+
+      // 检查文本是否匹配所有搜索关键词
+      function matchesAllTerms(text, searchTerms) {
+        if (!searchTerms || searchTerms.length === 0) return true;
+        
+        const lowerText = text.toLowerCase();
+        return searchTerms.every(term => 
+          lowerText.includes(term.toLowerCase())
+        );
+      }
+
+      // 高亮搜索关键词（支持多关键词）
+      function highlightSearchTerm(text, searchTerm) {
+        if (!searchTerm) return text;
+        
+        const searchTerms = parseSearchTerms(searchTerm);
+        if (searchTerms.length === 0) return text;
+        
+        let highlightedText = text;
+        
+        // 按关键词长度倒序排列，避免短关键词覆盖长关键词的高亮
+        const sortedTerms = searchTerms.sort((a, b) => b.length - a.length);
+        
+        sortedTerms.forEach(term => {
+          const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(${escapedTerm})`, 'gi');
+          highlightedText = highlightedText.replace(regex, '<span class="highlight">$1</span>');
+        });
+        
+        return highlightedText;
+      }
+
+      // 过滤日志条目（支持多关键词搜索）
+      function filterLogEntries(container, logData, searchTerm) {
+        container.innerHTML = '';
+        
+        const searchTerms = parseSearchTerms(searchTerm);
+        
+        const filteredData = logData.filter(entry => {
+          return matchesAllTerms(entry.message, searchTerms);
+        });
+        
+        filteredData.forEach(entry => {
+          const logElement = createLogElement(
+            highlightSearchTerm(entry.message, searchTerm),
+            entry.isOSC
+          );
+          container.appendChild(logElement);
+        });
+        
+        // 滚动到底部
+        container.scrollTop = container.scrollHeight;
+        
+        // 显示搜索结果统计
+        updateSearchStats(container, filteredData.length, logData.length, searchTerms);
+      }
+
+      // 更新搜索结果统计
+      function updateSearchStats(container, filteredCount, totalCount, searchTerms) {
+        // 移除之前的统计信息
+        const existingStats = container.querySelector('.search-stats');
+        if (existingStats) {
+          existingStats.remove();
+        }
+        
+        // 如果有搜索条件且结果不等于总数，显示统计
+        if (searchTerms.length > 0 && filteredCount !== totalCount) {
+          const statsElement = document.createElement('div');
+          statsElement.className = 'search-stats';
+          
+          const termsText = searchTerms.length > 1 ? 
+            `关键词: "${searchTerms.join('", "')}"` : 
+            `关键词: "${searchTerms[0]}"`;
+          
+          statsElement.innerHTML = `
+            <div class="search-stats-content">
+              <span class="search-icon">🔍</span>
+              <span>${termsText}</span>
+              <span class="search-count">${filteredCount}/${totalCount} 条</span>
+            </div>
+          `;
+          
+          container.insertBefore(statsElement, container.firstChild);
+        }
+      }
+
+      // 执行搜索
+      function performSearch(type) {
+        if (type === 'sent') {
+          sentSearchTerm = sentSearchInput.value.trim();
+          filterLogEntries(sentLogContainer, sentLogData, sentSearchTerm);
+          sentClearSearchBtn.style.display = sentSearchTerm ? 'flex' : 'none';
+        } else if (type === 'received') {
+          receivedSearchTerm = receivedSearchInput.value.trim();
+          filterLogEntries(receivedLogContainer, receivedLogData, receivedSearchTerm);
+          receivedClearSearchBtn.style.display = receivedSearchTerm ? 'flex' : 'none';
+        }
+      }
+
+      // 清除搜索
+      function clearSearch(type) {
+        if (type === 'sent') {
+          sentSearchInput.value = '';
+          sentSearchTerm = '';
+          filterLogEntries(sentLogContainer, sentLogData, '');
+          sentClearSearchBtn.style.display = 'none';
+          sentSearchInput.focus();
+        } else if (type === 'received') {
+          receivedSearchInput.value = '';
+          receivedSearchTerm = '';
+          filterLogEntries(receivedLogContainer, receivedLogData, '');
+          receivedClearSearchBtn.style.display = 'none';
+          receivedSearchInput.focus();
+        }
+      }
+
+      // 搜索事件监听器
+      sentSearchBtn.addEventListener('click', () => performSearch('sent'));
+      sentSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch('sent');
+      });
+      sentSearchInput.addEventListener('input', () => {
+        if (sentSearchInput.value === '') clearSearch('sent');
+      });
+      sentClearSearchBtn.addEventListener('click', () => clearSearch('sent'));
+
+      receivedSearchBtn.addEventListener('click', () => performSearch('received'));
+      receivedSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch('received');
+      });
+      receivedSearchInput.addEventListener('input', () => {
+        if (receivedSearchInput.value === '') clearSearch('received');
+      });
+      receivedClearSearchBtn.addEventListener('click', () => clearSearch('received'));
+
+      // 添加系统日志
+      function addSystemLog(message) {
+        const logEntry = createLogElement(message, false);
+        systemLogContainer.appendChild(logEntry);
+        
+        // 存储到数据数组
+        systemLogData.push({
+          message: message,
+          isOSC: false,
+          timestamp: Date.now()
+        });
+        
+        limitLogEntries(systemLogContainer, systemLogData, 100);
+        systemLogContainer.scrollTop = systemLogContainer.scrollHeight;
+      }
+
+      // 添加OSC日志
+      function addOSCLog(message, direction) {
+        const logData = {
+          message: message,
+          isOSC: true,
+          timestamp: Date.now()
+        };
+        
+        if (direction === 'sent') {
+          sentLogData.push(logData);
+          const sentSearchTerms = parseSearchTerms(sentSearchTerm);
+          if (matchesAllTerms(message, sentSearchTerms)) {
+            const logElement = createLogElement(
+              highlightSearchTerm(message, sentSearchTerm),
+              true
+            );
+            sentLogContainer.appendChild(logElement);
+          }
+          limitLogEntries(sentLogContainer, sentLogData, 100);
+          if (sentSearchTerms.length === 0) {
+            sentLogContainer.scrollTop = sentLogContainer.scrollHeight;
+          } else {
+            // 如果有搜索条件，更新统计信息
+            updateSearchStats(sentLogContainer, 
+              sentLogContainer.querySelectorAll('.log-entry').length, 
+              sentLogData.length, 
+              sentSearchTerms);
+          }
+        } else if (direction === 'received') {
+          receivedLogData.push(logData);
+          const receivedSearchTerms = parseSearchTerms(receivedSearchTerm);
+          if (matchesAllTerms(message, receivedSearchTerms)) {
+            const logElement = createLogElement(
+              highlightSearchTerm(message, receivedSearchTerm),
+              true
+            );
+            receivedLogContainer.appendChild(logElement);
+          }
+          limitLogEntries(receivedLogContainer, receivedLogData, 100);
+          if (receivedSearchTerms.length === 0) {
+            receivedLogContainer.scrollTop = receivedLogContainer.scrollHeight;
+          } else {
+            // 如果有搜索条件，更新统计信息
+            updateSearchStats(receivedLogContainer, 
+              receivedLogContainer.querySelectorAll('.log-entry').length, 
+              receivedLogData.length, 
+              receivedSearchTerms);
+          }
+        }
+      }
+
+      // 限制日志条目数量
+      function limitLogEntries(container, dataArray, maxEntries) {
+        // 从数据数组中移除多余的条目
+        while (dataArray.length > maxEntries) {
+          dataArray.shift();
+        }
+        
+        // 从DOM中移除多余的条目
+        while (container.children.length > maxEntries) {
+          container.removeChild(container.firstChild);
+        }
+      }
+
+      // 更新连接状态指示器
+      function updateConnectionStatus(connected) {
+        if (connected) {
+          wsStatusIndicator.classList.add('connected');
+          wsStatusText.textContent = '已连接';
+        } else {
+          wsStatusIndicator.classList.remove('connected');
+          wsStatusText.textContent = '未连接';
+        }
+      }
+
+      // 处理从后端接收的日志消息
+      function handleLogMessage(data) {
+        const message = data.message;
+        
+        if (message.includes('→')) {
+          // 发送方向的日志
+          addOSCLog(message, 'sent');
+        } else if (message.includes('←')) {
+          // 接收方向的日志
+          addOSCLog(message, 'received');
+        } else {
+          // 系统日志
+          addSystemLog(message);
+        }
+      }
+
+      // WebSocket 连接管理
+      function connectWebSocket() {
+        try {
+          ws = new WebSocket('ws://localhost:9122');
+          
+          ws.onopen = function() {
+            updateConnectionStatus(true);
+            addSystemLog('✅ WebSocket 连接已建立 (端口 9122)');
+            if (reconnectInterval) {
+              clearInterval(reconnectInterval);
+              reconnectInterval = null;
+            }
+          };
+          
+          ws.onmessage = function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'log') {
+                handleLogMessage(data);
+              }
+            } catch (e) {
+              addSystemLog('接收到消息: ' + event.data);
+            }
+          };
+          
+          ws.onclose = function(event) {
+            updateConnectionStatus(false);
+            if (event.wasClean) {
+              addSystemLog('🔌 WebSocket 连接已正常关闭');
+            } else {
+              addSystemLog('⚠️ WebSocket 连接意外断开，3秒后重连...');
+              if (!reconnectInterval) {
+                reconnectInterval = setInterval(() => {
+                  connectWebSocket();
+                }, 3000);
+              }
+            }
+          };
+          
+          ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            addSystemLog('❌ WebSocket 连接错误，请确保后端服务已启动 (端口 9122)');
+          };
+        } catch (error) {
+          addSystemLog('连接失败: ' + error.message);
+        }
+      }
+
+      // 发送OSC消息
+      function sendOSCMessage(address, args) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const message = {
+            type: 'osc',
+            address: address,
+            args: args
+          };
+          ws.send(JSON.stringify(message));
+          addSystemLog(`发送 OSC 消息: ${address} ${args.join(' ')}`);
+        } else {
+          addSystemLog('WebSocket 未连接，无法发送消息');
+        }
+      }
+
+      // 清除日志事件监听器
+      clearSystemLogBtn.addEventListener('click', () => {
+        systemLogContainer.innerHTML = '';
+        systemLogData = [];
+        addSystemLog('系统日志已清除');
+      });
+
+      clearSentLogBtn.addEventListener('click', () => {
+        sentLogContainer.innerHTML = '';
+        sentLogData = [];
+        addSystemLog('发送日志已清除');
+      });
+
+      clearReceivedLogBtn.addEventListener('click', () => {
+        receivedLogContainer.innerHTML = '';
+        receivedLogData = [];
+        addSystemLog('接收日志已清除');
+      });
+
+      // 表单提交处理
+      const oscForm = document.getElementById('osc-form');
+      oscForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const address = document.getElementById('osc-address').value;
+        const argsText = document.getElementById('osc-args').value;
+        const args = argsText.split(',').map(arg => {
+          const trimmed = arg.trim();
+          // 尝试转换为数字
+          const num = parseFloat(trimmed);
+          return isNaN(num) ? trimmed : num;
+        });
+        sendOSCMessage(address, args);
+      });
+
+      // 页面加载时自动连接
+      window.addEventListener('load', () => {
+        // 设置初始连接状态
+        updateConnectionStatus(false);
+        addSystemLog('🚀 OSC Bridge 控制面板已启动');
+        addSystemLog('🔄 正在连接到后端服务 (ws://localhost:9122)...');
+        connectWebSocket();
+      });
+    </script>
+  </body>
+</html>
