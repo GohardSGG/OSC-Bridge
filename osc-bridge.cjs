@@ -18,7 +18,6 @@ let CONFIG = {
   WS: ["ws://localhost:9122"]
 };
 
-const PRESETS_DIR = 'C:/Web/Vue/Reaper Web/presets';
 const CONFIG_FILE = './config.json';
 
 // 读取配置文件
@@ -211,7 +210,6 @@ async function startWebSocketService() {
     console.log(`🌐 HTTP服务已启动，端口：${wsPort}`);
     console.log(`🎯 OSC 转发目标: ${CONFIG.TargetPorts.join(', ')}`);
     console.log(`🎧 OSC 监听端口: ${CONFIG.ListenPorts.join(', ')}`);
-    console.log(`📁 预设存储路径：${PRESETS_DIR}`);
   });
 
   // WebSocket服务
@@ -355,50 +353,7 @@ async function startWebSocketService() {
 }
 
 // ===================== 预设管理 API =====================
-// 确保预设目录存在
-async function ensurePresetsDir() {
-  try {
-    await fs.access(PRESETS_DIR);
-    console.log(`✓ 预设目录已验证存在：${PRESETS_DIR}`);
-  } catch {
-    await fs.mkdir(PRESETS_DIR, { recursive: true });
-    console.log(`📁 创建预设目录：${PRESETS_DIR}`);
-  }
-}
-
-// 获取预设
-app.get('/presets/:role', async (req, res) => {
-  await ensurePresetsDir();
-  const safeRole = req.params.role.replace(/[^a-zA-Z]/g, '');
-  const filePath = path.join(PRESETS_DIR, `${safeRole}.json`);
-  
-  console.log(`🔍 尝试读取预设文件：${filePath}`);
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    console.log(`📤 发送预设：${safeRole}.json`);
-    res.json(JSON.parse(data));
-  } catch (err) {
-    console.error(`⚠️ 预设不存在或读取失败：${safeRole} | 错误详情：${err.message}`);
-    res.status(404).send('Preset not found');
-  }
-});
-
-// 保存预设
-app.post('/presets/:role', async (req, res) => {
-  console.log('[🔵] 收到保存请求，角色:', req.params.role);
-  const safeRole = req.params.role.replace(/[^a-zA-Z0-9 ]/g, '').replace(/ /g, '_');
-  const filePath = path.join(PRESETS_DIR, `${safeRole}.json`);
-
-  try {
-    const data = JSON.stringify(req.body, null, 2);
-    await fs.writeFile(filePath, data);
-    console.log(`[✅] 预设保存成功：${safeRole}.json`);
-    res.send('Preset saved');
-  } catch (err) {
-    console.error(`[❌] 保存失败：${err.message}`);
-    res.status(500).send('Save failed');
-  }
-});
+// 已移除与预设管理相关的代码
 
 // 配置热重载API
 app.post('/reload-config', async (req, res) => {
@@ -464,13 +419,10 @@ process.on('uncaughtException', (err) => {
     // 1. 加载配置
     await loadConfig();
     
-    // 2. 确保预设目录存在
-    await ensurePresetsDir();
-    
-    // 3. 启动UDP服务
+    // 2. 启动UDP服务
     await startUDPServices();
     
-    // 4. 启动WebSocket服务
+    // 3. 启动WebSocket服务
     await startWebSocketService();
     
     console.log('=====================================');
@@ -479,7 +431,6 @@ process.on('uncaughtException', (err) => {
     console.log(`├── WebSocket端口: ${CONFIG.WS[0]}`);
     console.log(`├── UDP监听端口: ${CONFIG.ListenPorts.join(', ')}`);
     console.log(`├── UDP转发目标: ${CONFIG.TargetPorts.join(', ')}`);
-    console.log(`└── 预设存储路径: ${PRESETS_DIR}`);
     console.log('');
     console.log('💡 可以通过 POST /reload-config 热重载配置');
     console.log('💡 可以通过 GET /config 查看当前配置');
