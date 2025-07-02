@@ -6,6 +6,7 @@ use auto_launch::AutoLaunch;
 use std::process::{Command, Child};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
+use window_vibrancy::apply_blur;
 
 // 启动后端Node.js进程
 fn start_backend_process() -> Option<Child> {
@@ -172,6 +173,19 @@ fn save_config(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     Ok(())
 }
 
+// 新增命令，用于切换主窗口的显示和隐藏
+#[tauri::command]
+fn toggle_main_window(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
 // 加载配置从文件
 fn load_config(app: &AppHandle) -> AppConfig {
     let app_dir = match app.path().app_config_dir() {
@@ -245,6 +259,9 @@ fn update_tray_menu(app: &AppHandle) {
     }
 }
 
+#[derive(Default)]
+pub struct OSCBridge(pub Mutex<Option<Child>>);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     use tauri::{
@@ -255,7 +272,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            
+            #[cfg(target_os = "windows")]
+            apply_blur(&window, Some((0, 0, 0, 0)))
+                .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
+
             // 加载配置
             let config = load_config(&app.handle());
             
@@ -420,7 +444,8 @@ pub fn run() {
             get_config,
             set_auto_start,
             set_silent_start,
-            save_config
+            save_config,
+            toggle_main_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import OSC from 'osc-js';
 
 // ===================== 类型定义 =====================
@@ -68,6 +70,29 @@ function setupEventListeners() {
   autoScrollCheckbox.addEventListener('change', (e) => {
     isAutoScroll = (e.target as HTMLInputElement).checked;
   });
+
+  // 窗口关闭按钮
+  const closeBtn = document.getElementById('close-btn') as HTMLButtonElement;
+  console.log('关闭按钮元素:', closeBtn); // 调试信息
+  
+  if (closeBtn) {
+    console.log('找到关闭按钮，正在添加事件监听器'); // 调试信息
+    closeBtn.addEventListener('click', async () => {
+      console.log('关闭按钮被点击了！'); // 调试信息
+      try {
+        const window = WebviewWindow.getCurrent();
+        if (window) {
+          await window.hide();
+          console.log('窗口已隐藏');
+        }
+      } catch (error) {
+        console.error('隐藏窗口失败:', error);
+      }
+    });
+    console.log('关闭按钮事件监听器已添加'); // 调试信息
+  } else {
+    console.error('未找到关闭按钮元素！'); // 调试信息
+  }
 }
 
 // ===================== WebSocket 连接管理 =====================
@@ -113,15 +138,15 @@ function connectWebSocket() {
     addSystemLog({
       timestamp: getCurrentTimestamp(),
       type: 'warning',
-      message: '⚠️ WebSocket 连接已断开，5秒后尝试重连...'
+      message: '⚠️ WebSocket 连接已断开，15秒后尝试重连...'
     });
     
-    // 5秒后自动重连
+    // 15秒后自动重连
     setTimeout(() => {
       if (!websocket || websocket.readyState === WebSocket.CLOSED) {
         connectWebSocket();
       }
-    }, 5000);
+    }, 15000);
   };
 
   websocket.onerror = (error) => {
@@ -148,22 +173,38 @@ function handleLogMessage(logMessage: string) {
   // 注意：如果使用浏览器版本(index.html)，这个函数不会被调用
   // 因为浏览器版本有自己的日志处理逻辑
   
-  // 解析日志消息的方向，只处理真正的OSC消息
-  if (logMessage.includes('→') && (logMessage.includes('转发 OSC') || logMessage.includes('发送 OSC'))) {
-    // 发送OSC日志：从WebSocket转发到UDP目标设备
-    addOSCLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'sent',
-      direction: '→',
-      message: logMessage.replace(/^→\s*/, '') // 移除开头的箭头
-    });
-  } else if (logMessage.includes('←') && (logMessage.includes('收到 OSC') || logMessage.includes('接收 OSC'))) {
-    // 接收OSC日志：从UDP接收OSC消息
+  // 更精确的判断逻辑
+  if (logMessage.includes('从 [') && logMessage.includes('] -> 转发OSC到') && logMessage.includes('个WS')) {
+    // 从UDP接收到OSC消息：从 [IP:PORT] -> 转发OSC到 X/X 个WS
     addOSCLog({
       timestamp: getCurrentTimestamp(),
       type: 'received',
       direction: '←',
-      message: logMessage.replace(/^←\s*/, '') // 移除开头的箭头
+      message: logMessage
+    });
+  } else if (logMessage.includes('[WS #') && logMessage.includes('] -> 转发OSC到') && logMessage.includes('个Target')) {
+    // 从WebSocket发送OSC消息：[WS #X] -> 转发OSC到 X/X 个Target
+    addOSCLog({
+      timestamp: getCurrentTimestamp(),
+      type: 'sent',
+      direction: '→',
+      message: logMessage
+    });
+  } else if ((logMessage.includes('<-') || logMessage.includes('←')) && (logMessage.includes('收到OSC') || logMessage.includes('收到 OSC') || logMessage.includes('接收 OSC'))) {
+    // 其他接收方向的日志
+    addOSCLog({
+      timestamp: getCurrentTimestamp(),
+      type: 'received',
+      direction: '←',
+      message: logMessage.replace(/^(←|<-)\s*/, '') // 移除开头的箭头
+    });
+  } else if ((logMessage.includes('->') || logMessage.includes('→')) && (logMessage.includes('转发OSC') || logMessage.includes('转发 OSC') || logMessage.includes('发送 OSC'))) {
+    // 其他发送方向的日志
+    addOSCLog({
+      timestamp: getCurrentTimestamp(),
+      type: 'sent',
+      direction: '→',
+      message: logMessage.replace(/^(→|->)\s*/, '') // 移除开头的箭头
     });
   } else {
     // 其他系统消息放到系统日志
@@ -459,10 +500,10 @@ async function initTrayConfig() {
   try {
     const config = await getTrayConfig();
     addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'info',
+    timestamp: getCurrentTimestamp(),
+    type: 'info',
       message: `📋 当前配置: 开机自启${config.auto_start ? '已启用' : '已禁用'}, 静默启动${config.silent_start ? '已启用' : '已禁用'}`
-    });
+  });
   } catch (error) {
     console.error('初始化托盘配置失败:', error);
   }

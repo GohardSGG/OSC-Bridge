@@ -10,17 +10,35 @@
 
   <body>
     <div class="container">
-      <header class="header">
-        <div class="status-item">
+      <header class="header" data-tauri-drag-region>
+        <div class="status-item" data-tauri-drag-region>
           <span class="status-indicator" id="ws-status"></span>
-          <span>WebSocket: </span>
+          <span class="status-label">WebSocket: </span>
           <span id="ws-status-text">未连接</span>
         </div>
-        <div class="status-item">
-          <span>监听端口: 7879, 9222</span>
+        <div class="status-divider" data-tauri-drag-region>|</div>
+        <div class="status-item" data-tauri-drag-region>
+          <span class="status-label">监听: </span>
+          <span id="listen-ports-display">127.0.0.1:7879/9222</span>
         </div>
-        <div class="status-item">
-          <span>转发目标: 127.0.0.1:7878, 127.0.0.1:9223</span>
+        <div class="status-divider" data-tauri-drag-region>|</div>
+        <div class="status-item" data-tauri-drag-region>
+          <span class="status-label">目标: </span>
+          <span id="target-ports-display">127.0.0.1:7878/9223</span>
+        </div>
+        <div class="header-actions">
+            <button id="settings-btn" class="icon-btn" title="设置">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+            <button id="close-btn" class="icon-btn" title="关闭">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
       </header>
 
@@ -31,11 +49,11 @@
             <form id="osc-form">
             <div class="form-group">
                 <label for="osc-address">OSC 地址</label>
-                <input type="text" id="osc-address" value="/track/1/volume">
+                <input type="text" id="osc-address" value="/Test">
             </div>
             <div class="form-group">
                 <label for="osc-args">参数 (以逗号分隔)</label>
-                <input type="text" id="osc-args" value="0.75">
+                <input type="text" id="osc-args" value="1">
               </div>
               <button type="submit" class="btn btn-primary">发送</button>
             </form>
@@ -135,6 +153,39 @@
       </div>
     </div>
 
+    <!-- 设置窗口 -->
+    <div id="settings-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>设置</h2>
+          <button id="close-settings-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-group">
+            <label>WebSocket 地址</label>
+            <div id="ws-address-setting">
+              <input type="text" id="ws-url-input" class="settings-input" value="ws://localhost:9122">
+            </div>
+          </div>
+          <div class="settings-group">
+            <label>监听端口</label>
+            <div id="listen-ports-container" class="settings-list">
+              <!-- 监听端口列表将动态生成在这里 -->
+            </div>
+            <button id="add-listen-port-btn" class="btn-add-item">+ 添加端口</button>
+          </div>
+          <div class="settings-group">
+            <label>转发目标</label>
+            <div id="forward-targets-container" class="settings-list">
+              <!-- 转发目标列表将动态生成在这里 -->
+            </div>
+            <button id="add-forward-target-btn" class="btn-add-item">+ 添加目标</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/osc-js/lib/osc.min.js"></script>
     <script>
       // 存储原始日志数据
       let sentLogData = [];
@@ -168,6 +219,16 @@
       const receivedSearchInput = document.getElementById('received-search');
       const receivedSearchBtn = document.getElementById('received-search-btn');
       const receivedClearSearchBtn = document.getElementById('received-clear-search');
+      
+      // 设置窗口元素
+      const settingsBtn = document.getElementById('settings-btn');
+      const settingsModal = document.getElementById('settings-modal');
+      const closeSettingsBtn = document.getElementById('close-settings-btn');
+      const wsUrlInput = document.getElementById('ws-url-input');
+      const listenPortsContainer = document.getElementById('listen-ports-container');
+      const addListenPortBtn = document.getElementById('add-listen-port-btn');
+      const forwardTargetsContainer = document.getElementById('forward-targets-container');
+      const addForwardTargetBtn = document.getElementById('add-forward-target-btn');
 
       // 创建日志元素
       function createLogElement(message, isOSC = false) {
@@ -181,12 +242,45 @@
           second: '2-digit'
         });
         
+        // 如果是OSC日志，进行特殊的颜色处理
+        const processedMessage = isOSC ? colorizeOSCMessage(message) : message;
+        
         logEntry.innerHTML = `
           <span class="log-time">[${timestamp}]</span>
-          <span class="log-message">${message}</span>
+          <span class="log-message">${processedMessage}</span>
         `;
         
         return logEntry;
+      }
+
+      // 为OSC日志消息添加颜色
+      function colorizeOSCMessage(message) {
+        let colorized = message;
+
+        // 顺序很重要，从最具体的规则开始
+        
+        // 1. OSC地址 - 橙色
+        colorized = colorized.replace(/(地址: )([^\s|]+)/g, '$1<span class="osc-address">$2</span>');
+
+        // 2. OSC数值 (包括布尔值) - 红色
+        colorized = colorized.replace(/(值: )(true|false|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/g, '$1<span class="osc-value">$2</span>');
+
+        // 3. OSC类型 - 灰色
+        colorized = colorized.replace(/(类型: )(\w+)/g, '$1<span class="osc-type">$2</span>');
+        
+        // 4. 客户端ID (WebSocket) - 蓝色
+        colorized = colorized.replace(/(\[WS #\d+\])/g, '<span class="osc-client-id">$1</span>');
+
+        // 5. 来源 (UDP IP) - 绿色 (只给IP上色)
+        colorized = colorized.replace(/(\[\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+\])/g, '<span class="osc-source">$1</span>');
+
+        // 6. 转发数量 - 绿色
+        colorized = colorized.replace(/(\d+\/\d+)(?= 个(?:Target|WS))/g, '<span class="osc-count">$1</span>');
+        
+        // 7. Bundle包信息 - 灰色
+        colorized = colorized.replace(/(包 #\d+:)/g, '<span class="osc-type">$1</span>');
+
+        return colorized;
       }
 
       // 解析搜索关键词（支持多关键词空格分隔）
@@ -220,7 +314,8 @@
         sortedTerms.forEach(term => {
           const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(`(${escapedTerm})`, 'gi');
-          highlightedText = highlightedText.replace(regex, '<span class="highlight">$1</span>');
+          // 避免在已有的HTML标签内进行替换
+          highlightedText = highlightedText.replace(new RegExp(`(?![^<]*>)${escapedTerm}`, 'gi'), '<span class="search-highlight">$&</span>');
         });
         
         return highlightedText;
@@ -237,10 +332,11 @@
         });
         
         filteredData.forEach(entry => {
-          const logElement = createLogElement(
-            highlightSearchTerm(entry.message, searchTerm),
-            entry.isOSC
-          );
+          // 先进行颜色处理，再进行搜索高亮
+          let processedMessage = entry.isOSC ? colorizeOSCMessage(entry.message) : entry.message;
+          processedMessage = highlightSearchTerm(processedMessage, searchTerm);
+          
+          const logElement = createLogElementWithProcessedMessage(processedMessage);
           container.appendChild(logElement);
         });
         
@@ -249,6 +345,26 @@
         
         // 显示搜索结果统计
         updateSearchStats(container, filteredData.length, logData.length, searchTerms);
+      }
+
+      // 创建带有已处理消息的日志元素
+      function createLogElementWithProcessedMessage(processedMessage) {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        
+        const timestamp = new Date().toLocaleTimeString('zh-CN', { 
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        
+        logEntry.innerHTML = `
+          <span class="log-time">[${timestamp}]</span>
+          <span class="log-message">${processedMessage}</span>
+        `;
+        
+        return logEntry;
       }
 
       // 更新搜索结果统计
@@ -357,10 +473,10 @@
           sentLogData.push(logData);
           const sentSearchTerms = parseSearchTerms(sentSearchTerm);
           if (matchesAllTerms(message, sentSearchTerms)) {
-            const logElement = createLogElement(
-              highlightSearchTerm(message, sentSearchTerm),
-              true
-            );
+            // 先进行颜色处理，再进行搜索高亮
+            let processedMessage = colorizeOSCMessage(message);
+            processedMessage = highlightSearchTerm(processedMessage, sentSearchTerm);
+            const logElement = createLogElementWithProcessedMessage(processedMessage);
             sentLogContainer.appendChild(logElement);
           }
           limitLogEntries(sentLogContainer, sentLogData, 100);
@@ -377,10 +493,10 @@
           receivedLogData.push(logData);
           const receivedSearchTerms = parseSearchTerms(receivedSearchTerm);
           if (matchesAllTerms(message, receivedSearchTerms)) {
-            const logElement = createLogElement(
-              highlightSearchTerm(message, receivedSearchTerm),
-              true
-            );
+            // 先进行颜色处理，再进行搜索高亮
+            let processedMessage = colorizeOSCMessage(message);
+            processedMessage = highlightSearchTerm(processedMessage, receivedSearchTerm);
+            const logElement = createLogElementWithProcessedMessage(processedMessage);
             receivedLogContainer.appendChild(logElement);
           }
           limitLogEntries(receivedLogContainer, receivedLogData, 100);
@@ -424,14 +540,17 @@
       function handleLogMessage(data) {
         const message = data.message;
         
-        if (message.includes('→')) {
-          // 发送方向的日志
+        // 关键判断：通过日志开头的格式区分
+        // 发送日志: "[WS #...]"
+        if (message.startsWith('[WS #')) {
           addOSCLog(message, 'sent');
-        } else if (message.includes('←')) {
-          // 接收方向的日志
+        } 
+        // 接收日志: "[IP:PORT]" (例如 [127.0.0.1:7879])
+        else if (message.match(/^\[\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+\]/)) {
           addOSCLog(message, 'received');
-        } else {
-          // 系统日志
+        }
+        // 其他所有消息都归为系统日志
+        else {
           addSystemLog(message);
         }
       }
@@ -451,14 +570,20 @@
           };
           
           ws.onmessage = function(event) {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.type === 'log') {
-                handleLogMessage(data);
+            // 只处理字符串类型的消息，忽略二进制 Blob 数据
+            if (typeof event.data === 'string') {
+              try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'log') {
+                  handleLogMessage(data);
+                }
+              } catch (e) {
+                // 如果字符串不是有效的 JSON，则将其作为普通系统消息记录
+                addSystemLog('接收到原始文本消息: ' + event.data);
               }
-            } catch (e) {
-              addSystemLog('接收到消息: ' + event.data);
             }
+            // 对于 Blob 类型的消息，我们假定它们是原始OSC数据，
+            // 不应在系统日志中显示，因此在此处忽略它们。
           };
           
           ws.onclose = function(event) {
@@ -466,11 +591,11 @@
             if (event.wasClean) {
               addSystemLog('🔌 WebSocket 连接已正常关闭');
             } else {
-              addSystemLog('⚠️ WebSocket 连接意外断开，3秒后重连...');
+              addSystemLog('⚠️ WebSocket 连接意外断开，10秒后重连...');
               if (!reconnectInterval) {
                 reconnectInterval = setInterval(() => {
                   connectWebSocket();
-                }, 3000);
+                }, 10000);
               }
             }
           };
@@ -484,16 +609,21 @@
         }
       }
 
-      // 发送OSC消息
+      // 发送OSC消息 (发送二进制格式)
       function sendOSCMessage(address, args) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          const message = {
-            type: 'osc',
-            address: address,
-            args: args
-          };
-          ws.send(JSON.stringify(message));
-          addSystemLog(`发送 OSC 消息: ${address} ${args.join(' ')}`);
+          try {
+            const osc = new OSC();
+            const message = new OSC.Message(address, ...args);
+            const binaryPacket = message.pack();
+            
+            ws.send(binaryPacket);
+            addSystemLog(`✔ 已发送二进制 OSC 消息: ${address} ${args.join(' ')}`);
+
+          } catch (error) {
+            console.error("创建或发送OSC包时出错:", error);
+            addSystemLog(`❌ 创建OSC包失败: ${error.message}`);
+          }
         } else {
           addSystemLog('WebSocket 未连接，无法发送消息');
         }
@@ -533,12 +663,344 @@
         sendOSCMessage(address, args);
       });
 
+      // ===================== 设置功能 =====================
+      
+      const config = {
+        wsUrl: 'ws://localhost:9122',
+        listenPorts: ['127.0.0.1:7879', '127.0.0.1:9222'],
+        forwardTargets: ['127.0.0.1:7878', '127.0.0.1:9223']
+      };
+
+      async function saveConfig() {
+        // 保存到本地存储
+        localStorage.setItem('oscBridgeConfig', JSON.stringify(config));
+        // 保存到服务器config.json
+        await saveConfigToServer();
+      }
+
+      function loadConfig() {
+        const savedConfig = localStorage.getItem('oscBridgeConfig');
+        if (savedConfig) {
+          const parsedConfig = JSON.parse(savedConfig);
+          // 只在服务器配置不可用时才使用本地配置
+          if (!config.listenPorts || config.listenPorts.length === 0) {
+            // 验证并修复本地配置格式
+            if (parsedConfig.listenPorts) {
+              parsedConfig.listenPorts = validateAndFixPortFormat(parsedConfig.listenPorts);
+            }
+            if (parsedConfig.forwardTargets) {
+              parsedConfig.forwardTargets = validateAndFixPortFormat(parsedConfig.forwardTargets);
+            }
+            Object.assign(config, parsedConfig);
+            addSystemLog('🔧 已加载本地保存的配置（服务器配置不可用）');
+          } else {
+            addSystemLog('🔧 服务器配置优先，跳过本地配置');
+          }
+        }
+      }
+
+      function createSettingItem(value, type) {
+        const item = document.createElement('div');
+        item.className = 'settings-item';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'settings-input';
+        input.value = value;
+        input.addEventListener('change', async (e) => {
+          const index = Array.from(item.parentElement.children).indexOf(item);
+          if (type === 'listen') {
+            config.listenPorts[index] = e.target.value;
+          } else {
+            config.forwardTargets[index] = e.target.value;
+          }
+          await saveConfig();
+        });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove-item';
+        removeBtn.textContent = '删除';
+        removeBtn.addEventListener('click', async () => {
+          const index = Array.from(item.parentElement.children).indexOf(item);
+          if (type === 'listen') {
+            config.listenPorts.splice(index, 1);
+          } else {
+            config.forwardTargets.splice(index, 1);
+          }
+          await saveConfig();
+          populateSettings();
+        });
+
+        item.appendChild(input);
+        item.appendChild(removeBtn);
+        return item;
+      }
+
+      function populateSettings() {
+        // WebSocket URL
+        wsUrlInput.value = config.wsUrl;
+
+        // 监听端口
+        listenPortsContainer.innerHTML = '';
+        config.listenPorts.forEach(port => {
+          listenPortsContainer.appendChild(createSettingItem(port, 'listen'));
+        });
+
+        // 转发目标
+        forwardTargetsContainer.innerHTML = '';
+        config.forwardTargets.forEach(target => {
+          forwardTargetsContainer.appendChild(createSettingItem(target, 'forward'));
+        });
+        
+        // 更新顶部状态栏显示
+        updateHeaderInfo();
+      }
+      
+      function updateHeaderInfo() {
+          const listenPortsDisplay = document.getElementById('listen-ports-display');
+          const targetPortsDisplay = document.getElementById('target-ports-display');
+
+          if(listenPortsDisplay) {
+              listenPortsDisplay.textContent = formatPortsDisplay(config.listenPorts);
+          }
+          if(targetPortsDisplay) {
+              targetPortsDisplay.textContent = formatPortsDisplay(config.forwardTargets);
+          }
+      }
+
+      // 智能格式化端口显示
+      function formatPortsDisplay(ports) {
+        if (!ports || ports.length === 0) {
+          return '无';
+        }
+        
+        const ipGroups = {};
+        
+        // 按IP分组
+        ports.forEach(port => {
+          const parts = port.split(':');
+          const [ip, portNum] = parts;
+          
+          // 如果没有IP部分，说明只有端口号，需要添加默认IP
+          const finalIp = ip && portNum ? ip : '127.0.0.1';
+          const finalPort = ip && portNum ? portNum : parts[0];
+          
+          if (!ipGroups[finalIp]) {
+            ipGroups[finalIp] = [];
+          }
+          ipGroups[finalIp].push(finalPort);
+        });
+        
+        // 格式化显示
+        const formatted = Object.entries(ipGroups).map(([ip, portList]) => {
+          if (portList.length === 1) {
+            return `${ip}:${portList[0]}`;
+          } else {
+            return `${ip}:${portList.join('/')}`;
+          }
+        });
+        
+        return formatted.join(' || ');
+      }
+
+      // 显示通知
+      function showNotification(message, type = 'info') {
+        addSystemLog(`${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'} ${message}`);
+      }
+
+      // 验证并修复端口格式
+      function validateAndFixPortFormat(ports, defaultIp = '127.0.0.1') {
+        return ports.map(port => {
+          // 如果已经是完整的IP:端口格式，直接返回
+          if (port.includes(':')) {
+            return port;
+          }
+          // 如果只是端口号，添加默认IP
+          return `${defaultIp}:${port}`;
+        });
+      }
+
+      // 从服务器加载配置
+      async function loadConfigFromServer() {
+        try {
+          console.log('🔄 开始从服务器加载配置...');
+          const response = await fetch('http://localhost:9122/config');
+          
+          console.log('📡 响应状态:', response.status, response.statusText);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const serverConfig = await response.json();
+          console.log('📄 服务器配置数据:', serverConfig);
+          
+          // 更新本地配置并验证格式
+          config.wsUrl = serverConfig.WS[0] || 'ws://localhost:9122';
+          config.listenPorts = validateAndFixPortFormat(serverConfig.ListenPorts || []);
+          config.forwardTargets = validateAndFixPortFormat(serverConfig.TargetPorts || []);
+          
+          console.log('📥 从服务器加载配置成功:', {
+            监听端口: config.listenPorts,
+            转发目标: config.forwardTargets
+          });
+          
+          showNotification('配置加载成功', 'success');
+          updateHeaderInfo();
+        } catch (error) {
+          console.error('❌ 加载配置失败详情:', error);
+          showNotification(`加载配置失败: ${error.message}`, 'error');
+          
+          // 如果服务器配置加载失败，使用默认配置
+          console.log('🔄 使用默认配置作为后备');
+          updateHeaderInfo();
+        }
+      }
+
+      // 保存配置到服务器
+      async function saveConfigToServer() {
+        try {
+          const serverConfig = {
+            ListenPorts: config.listenPorts,
+            TargetPorts: config.forwardTargets,
+            WS: [config.wsUrl]
+          };
+
+          console.log('💾 保存配置到服务器:', serverConfig);
+
+          const response = await fetch('http://localhost:9122/save-config', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(serverConfig)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          
+          if (result.success) {
+            console.log('✅ 配置保存成功');
+            showNotification('配置保存成功', 'success');
+            updateHeaderInfo();
+          } else {
+            throw new Error(result.message);
+          }
+        } catch (error) {
+          console.error('❌ 保存配置失败:', error);
+          showNotification('保存配置失败: ' + error.message, 'error');
+          }
+      }
+
+      // 事件监听器
+      settingsBtn.addEventListener('click', () => {
+        populateSettings();
+        settingsModal.style.display = 'flex';
+      });
+
+      closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.style.display = 'none';
+      });
+
+      // 关闭按钮事件监听器
+      const closeBtn = document.getElementById('close-btn');
+      if (closeBtn) {
+        console.log('找到关闭按钮，正在添加事件监听器');
+        closeBtn.addEventListener('click', async () => {
+          console.log('关闭按钮被点击了！');
+          try {
+            // 在Tauri环境中，使用window.__TAURI__来访问Tauri API
+            if (window.__TAURI__) {
+              const { WebviewWindow } = window.__TAURI__.webviewWindow;
+              const currentWindow = WebviewWindow.getCurrent();
+              if (currentWindow) {
+                await currentWindow.hide();
+                console.log('窗口已隐藏');
+              }
+            } else {
+              console.log('不在Tauri环境中，无法隐藏窗口');
+            }
+          } catch (error) {
+            console.error('隐藏窗口失败:', error);
+          }
+        });
+        console.log('关闭按钮事件监听器已添加');
+      } else {
+        console.error('未找到关闭按钮元素！');
+      }
+      
+      window.addEventListener('click', (e) => {
+          if (e.target === settingsModal) {
+              settingsModal.style.display = 'none';
+          }
+      });
+
+      wsUrlInput.addEventListener('change', async (e) => {
+        const newUrl = e.target.value;
+        if (newUrl !== config.wsUrl) {
+          config.wsUrl = newUrl;
+          await saveConfig();
+        addSystemLog('ℹ️ WebSocket 地址已更新，重新连接后生效');
+        ws.close(); // 关闭当前连接以触发重连
+        }
+      });
+
+      addListenPortBtn.addEventListener('click', async () => {
+        config.listenPorts.push('127.0.0.1:新端口');
+        populateSettings();
+        await saveConfig();
+      });
+
+      addForwardTargetBtn.addEventListener('click', async () => {
+        config.forwardTargets.push('127.0.0.1:新端口');
+        populateSettings();
+        await saveConfig();
+      });
+
+      // 清理和验证配置
+      function cleanupAndValidateConfig() {
+        // 验证当前配置格式
+        config.listenPorts = validateAndFixPortFormat(config.listenPorts);
+        config.forwardTargets = validateAndFixPortFormat(config.forwardTargets);
+        
+        // 清理本地存储中可能的错误配置
+        const savedConfig = localStorage.getItem('oscBridgeConfig');
+        if (savedConfig) {
+          try {
+            const parsedConfig = JSON.parse(savedConfig);
+            const needsUpdate = 
+              (parsedConfig.listenPorts && parsedConfig.listenPorts.some(port => !port.includes(':'))) ||
+              (parsedConfig.forwardTargets && parsedConfig.forwardTargets.some(target => !target.includes(':')));
+            
+            if (needsUpdate) {
+              localStorage.removeItem('oscBridgeConfig');
+              addSystemLog('🧹 已清理旧版本配置格式');
+            }
+          } catch (e) {
+            console.error('清理本地配置时出错:', e);
+            localStorage.removeItem('oscBridgeConfig');
+          }
+        }
+      }
+
       // 页面加载时自动连接
-      window.addEventListener('load', () => {
+      window.addEventListener('load', async () => {
         // 设置初始连接状态
         updateConnectionStatus(false);
         addSystemLog('🚀 OSC Bridge 控制面板已启动');
-        addSystemLog('🔄 正在连接到后端服务 (ws://localhost:9122)...');
+        
+        // 1. 先清理和验证默认配置
+        cleanupAndValidateConfig();
+        
+        // 2. 加载配置（优先从服务器加载）
+        await loadConfigFromServer();
+        loadConfig(); // 备用本地配置
+        populateSettings();
+        
+        addSystemLog('🔄 正在连接到后端服务 (' + config.wsUrl + ')...');
         connectWebSocket();
       });
     </script>
