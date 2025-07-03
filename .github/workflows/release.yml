@@ -52,9 +52,11 @@ jobs:
           # GITHUB_TOKEN 是必需的，用于向你的仓库推送 Release
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # 提供触发工作流的 Git 标签，这是创建 Release 和上传的唯一关键
+          tagName: ${{ github.ref_name }}
           # tauri-action 会自动从 git 标签中获取版本号
           # 例如，如果标签是 v1.0.0，它会自动处理
-          releaseName: 'OSC-Bridge v__VERSION__' # __VERSION__ 会被替换为应用版本
+          releaseName: 'OSC-Bridge __VERSION__' # __VERSION__ 会被替换为应用版本
           releaseBody: '请从下面的 Assets 中下载对应平台的安装包。'
           releaseDraft: false
           prerelease: false 
