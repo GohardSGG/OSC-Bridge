@@ -1,0 +1,34 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .osc-text {
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      font-size: 42px;
+      font-weight: bold;
+      fill: #888888; /* 灰色字体 */
+      text-anchor: middle; /* 文本居中对齐 */
+    }
+    .connector-arc {
+      fill: none;
+      stroke: #007bff; /* 蓝色连接线 */
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+  </style>
+
+  <!-- 将字母垂直居中，并调整Y轴位置 -->
+  <text x="28" y="70" class="osc-text">O</text>
+  <text x="60" y="70" class="osc-text">S</text>
+  <text x="92" y="70" class="osc-text">C</text>
+
+  <!-- 
+    连接弧线: 大幅调整了Y轴位置
+    M x y: 移动到起始点
+    A rx ry, x-axis-rotation, large-arc-flag, sweep-flag, x y: 绘制弧线到终点
+   -->
+  <!-- 上方的连接弧线 -->
+  <path d="M 45 35 A 18 18 0 0 1 75 35" class="connector-arc" />
+  
+  <!-- 下方的连接弧线 -->
+  <path d="M 45 75 A 18 18 0 0 0 75 75" class="connector-arc" />
+
+</svg>

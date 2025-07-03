@@ -37,6 +37,8 @@
   --neumorphism-soft: 
     5px 5px 10px var(--shadow-dark),
     -5px -5px 10px var(--shadow-light);
+
+  --font-primary: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
 }
 
 /* ===================== 全局样式 ===================== */
@@ -52,14 +54,22 @@ html, body {
   height: 100vh;
   /* background: transparent !important; */ /* 由 window-vibrancy 插件处理 */
   overflow: hidden;
+  user-select: none; /* 全局禁止文本选择 */
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', 'Meiryo UI', sans-serif;
+  background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
   display: flex;
   flex-direction: column;
+}
+
+/* 允许在需要的地方选择文本 */
+input[type="text"],
+.log-entry .message {
+  user-select: text;
 }
 
 .container {
@@ -96,25 +106,42 @@ body {
 }
 
 .icon-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0.4rem;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.3s ease, background-color 0.3s ease;
+  background: none;
+  border: none;
+  padding: 0.4rem;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  transition: background-color 0.2s ease;
 }
 
 .icon-btn:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-hover);
 }
 
-#close-btn:hover {
-    background-color: rgba(245, 101, 101, 1); /* 悬停时淡红色背景 */
+.icon-btn.close-btn:hover {
+  background-color: var(--accent-red-dark);
+  color: #fff;
+}
+
+.btn-remove-item {
+  color: var(--accent-red);
+}
+
+.btn-remove-item:hover {
+  background-color: var(--accent-red-darker);
+  color: #fff;
+}
+
+.btn-remove-item svg {
+  width: 18px;
+  height: 18px;
 }
 
 .status-item {
@@ -501,7 +528,7 @@ body {
 /* ===================== 滚动条样式 ===================== */
 
 .log-container::-webkit-scrollbar {
-  width: 8px;
+  width: 3px;
 }
 
 .log-container::-webkit-scrollbar-track {
@@ -871,9 +898,14 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.8rem 1.2rem;
-  background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--bg-primary);
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border-color-soft);
+  position: relative;
+}
+
+.modal-header-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .modal-header h2 {
@@ -886,7 +918,7 @@ body {
   background: none;
   border: none;
   font-size: 1.8rem;
-  font-weight: 300;
+  font-weight: bold;
   color: var(--text-secondary);
   cursor: pointer;
   transition: color 0.3s ease;
@@ -897,9 +929,33 @@ body {
 }
 
 .modal-body {
-  padding: 1.2rem;
-  max-height: 70vh;
+  padding: 20px;
   overflow-y: auto;
+  max-height: 400px;
+}
+
+/* --- 滚动条样式 --- */
+.log-container::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar {
+  width: 3px;
+}
+
+.log-container::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 10px;
+}
+
+.log-container::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  border-radius: 10px;
+  box-shadow: var(--neumorphism-soft);
+}
+
+.log-container::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
 }
 
 .settings-group {

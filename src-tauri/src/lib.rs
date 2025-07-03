@@ -3,62 +3,9 @@ use tauri::{AppHandle, Manager, State};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use auto_launch::AutoLaunch;
-use std::process::{Command, Child};
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 use window_vibrancy::apply_blur;
 
-// 启动后端Node.js进程
-fn start_backend_process() -> Option<Child> {
-    // 获取当前exe所在目录
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let script_path = exe_dir.join("osc-bridge.cjs");
-            
-            println!("尝试启动后端脚本: {:?}", script_path);
-            
-            // 尝试启动Node.js进程
-            let mut cmd = Command::new("node");
-            cmd.arg(&script_path).current_dir(exe_dir);
-            
-            #[cfg(windows)]
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW on Windows
-            
-            match cmd.spawn()
-            {
-                Ok(child) => {
-                    println!("后端脚本启动成功，PID: {}", child.id());
-                    return Some(child);
-                }
-                Err(e) => {
-                    eprintln!("启动后端脚本失败: {}", e);
-                    
-                    // 如果node命令不存在，尝试使用完整路径
-                    if let Ok(node_path) = which::which("node") {
-                        println!("尝试使用完整Node.js路径: {:?}", node_path);
-                        let mut cmd2 = Command::new(&node_path);
-                        cmd2.arg(&script_path).current_dir(exe_dir);
-                        
-                        #[cfg(windows)]
-                        cmd2.creation_flags(0x08000000);
-                        
-                        match cmd2.spawn()
-                        {
-                            Ok(child) => {
-                                println!("后端脚本启动成功（完整路径），PID: {}", child.id());
-                                return Some(child);
-                            }
-                            Err(e2) => {
-                                eprintln!("使用完整路径启动也失败: {}", e2);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    None
-}
+mod bridge; // 声明新的 bridge 模块
 
 // 应用配置结构
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -76,32 +23,45 @@ impl Default for AppConfig {
     }
 }
 
+// OSC桥接服务配置
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+struct BridgeConfig {
+    listen_ports: Vec<String>,
+    target_ports: Vec<String>,
+    #[serde(rename = "WS")]
+    ws: Vec<String>,
+}
+
+impl Default for BridgeConfig {
+    fn default() -> Self {
+        Self {
+            listen_ports: vec!["127.0.0.1:7879".to_string()],
+            target_ports: vec!["127.0.0.1:7878".to_string()],
+            ws: vec!["ws://localhost:9122".to_string()],
+        }
+    }
+}
+
 // 全局状态
 struct AppState {
-    config: Mutex<AppConfig>,
+    app_config: Mutex<AppConfig>,
+    bridge_config: Mutex<BridgeConfig>,
     auto_launch: Mutex<Option<AutoLaunch>>,
-    backend_process: Mutex<Option<std::process::Child>>,
 }
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-// 获取配置
 #[tauri::command]
 fn get_config(state: State<AppState>) -> Result<AppConfig, String> {
-    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let config = state.app_config.lock().map_err(|e| e.to_string())?;
     Ok(config.clone())
 }
 
 // 设置自启动
 #[tauri::command]
 fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
-    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    let mut config = state.app_config.lock().map_err(|e| e.to_string())?;
     config.auto_start = enabled;
     
-    // 重新创建AutoLaunch实例以包含正确的参数
     let args = if config.silent_start {
         vec!["--silent"]
     } else {
@@ -120,7 +80,6 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
         new_auto_launch.disable().map_err(|e| format!("禁用自启动失败: {}", e))?;
     }
     
-    // 更新状态中的AutoLaunch实例
     let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
     *auto_launch_guard = Some(new_auto_launch);
     
@@ -130,10 +89,9 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
 // 设置静默启动
 #[tauri::command]
 fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
-    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    let mut config = state.app_config.lock().map_err(|e| e.to_string())?;
     config.silent_start = enabled;
     
-    // 如果自启动已启用，需要更新AutoLaunch实例以包含新的参数
     if config.auto_start {
         let args = if enabled {
             vec!["--silent"]
@@ -147,10 +105,8 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
             &args,
         );
         
-        // 重新启用自启动以应用新参数
         new_auto_launch.enable().map_err(|e| format!("更新自启动配置失败: {}", e))?;
         
-        // 更新状态中的AutoLaunch实例
         let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
         *auto_launch_guard = Some(new_auto_launch);
     }
@@ -161,7 +117,7 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
 // 保存配置到文件
 #[tauri::command]
 fn save_config(app: AppHandle, state: State<AppState>) -> Result<(), String> {
-    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let config = state.app_config.lock().map_err(|e| e.to_string())?;
     
     let app_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
@@ -187,7 +143,7 @@ fn toggle_main_window(app: AppHandle) {
 }
 
 // 加载配置从文件
-fn load_config(app: &AppHandle) -> AppConfig {
+fn load_app_config(app: &AppHandle) -> AppConfig {
     let app_dir = match app.path().app_config_dir() {
         Ok(dir) => dir,
         Err(_) => return AppConfig::default(),
@@ -199,14 +155,31 @@ fn load_config(app: &AppHandle) -> AppConfig {
     }
     
     match std::fs::read_to_string(config_path) {
-        Ok(content) => {
-            match serde_json::from_str::<AppConfig>(&content) {
-                Ok(config) => config,
-                Err(_) => AppConfig::default(),
-            }
-        }
+        Ok(content) => serde_json::from_str::<AppConfig>(&content).unwrap_or_default(),
         Err(_) => AppConfig::default(),
     }
+}
+
+// 加载OSC桥接服务配置 (新函数)
+fn load_bridge_config() -> BridgeConfig {
+    // 逻辑与 osc-bridge.cjs 保持一致: 从程序运行目录读取 config.json
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let config_path = exe_dir.join("config.json");
+            println!("正在从以下路径加载OSC配置: {:?}", config_path);
+            if config_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(config_path) {
+                    // 如果解析成功，则返回解析后的配置，否则返回默认配置
+                    return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
+                        eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
+                        BridgeConfig::default()
+                    });
+                }
+            }
+        }
+    }
+    println!("未找到 config.json 或路径错误，将使用默认OSC配置");
+    BridgeConfig::default()
 }
 
 // 更新托盘菜单状态
@@ -219,7 +192,7 @@ fn update_tray_menu(app: &AppHandle) {
     
     // 先获取配置状态，然后释放锁
     let (auto_start, silent_start) = {
-        if let Ok(config) = app_state.config.lock() {
+        if let Ok(config) = app_state.app_config.lock() {
             (config.auto_start, config.silent_start)
         } else {
             return; // 如果无法获取配置，直接返回
@@ -260,10 +233,12 @@ fn update_tray_menu(app: &AppHandle) {
 }
 
 #[derive(Default)]
-pub struct OSCBridge(pub Mutex<Option<Child>>);
+pub struct OSCBridge(pub Mutex<Option<()>>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    tracing_subscriber::fmt::init(); // 初始化日志系统
+
     use tauri::{
         menu::{Menu, MenuItem},
         tray::TrayIconBuilder,
@@ -273,6 +248,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_http::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             
@@ -280,14 +256,21 @@ pub fn run() {
             apply_blur(&window, Some((0, 0, 0, 0)))
                 .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
 
-            // 加载配置
-            let config = load_config(&app.handle());
+            // 1. 加载所有配置
+            let app_config = load_app_config(&app.handle());
+            let bridge_config = load_bridge_config();
+            println!("加载的OSC配置: {:?}", bridge_config);
+
+            // 将 Tauri app handle 复制一份用于传递给后台任务
+            let app_handle = app.handle().clone();
             
-            // 启动后端脚本
-            let backend_process = start_backend_process();
+            // 2. 在后台启动桥接服务
+            tauri::async_runtime::spawn(async move {
+                bridge::run_bridge(app_handle).await;
+            });
             
-            // 创建自启动实例（如果启用静默启动，添加启动参数）
-            let args = if config.silent_start {
+            // 3. 创建自启动实例
+            let args = if app_config.silent_start {
                 vec!["--silent"]
             } else {
                 vec![]
@@ -299,17 +282,17 @@ pub fn run() {
                 &args,
             );
             
-            // 初始化应用状态
+            // 4. 初始化应用状态
             let app_state = AppState {
-                config: Mutex::new(config.clone()),
+                app_config: Mutex::new(app_config.clone()),
+                bridge_config: Mutex::new(bridge_config.clone()),
                 auto_launch: Mutex::new(Some(auto_launch)),
-                backend_process: Mutex::new(backend_process),
             };
             app.manage(app_state);
             
-            // 检查命令行参数或配置，决定是否静默启动
-            let args: Vec<String> = std::env::args().collect();
-            let should_hide = config.silent_start || args.contains(&"--silent".to_string());
+            // 5. 根据配置或参数决定是否隐藏窗口
+            let cli_args: Vec<String> = std::env::args().collect();
+            let should_hide = app_config.silent_start || cli_args.contains(&"--silent".to_string());
             
             if should_hide {
                 if let Some(window) = app.get_webview_window("main") {
@@ -350,13 +333,7 @@ pub fn run() {
                     
                     match event.id.as_ref() {
                         "quit" => {
-                            // 清理后端进程
-                            if let Ok(mut backend_process) = app_state.backend_process.lock() {
-                                if let Some(mut child) = backend_process.take() {
-                                    let _ = child.kill();
-                                    println!("后端进程已终止");
-                                }
-                            }
+                            // 不再需要清理后端进程
                             app.exit(0);
                         }
                         "show" => {
@@ -370,7 +347,7 @@ pub fn run() {
                             }
                         }
                         "auto_start" => {
-                            if let Ok(config) = app_state.config.lock() {
+                            if let Ok(config) = app_state.app_config.lock() {
                                 let new_state = !config.auto_start;
                                 drop(config);
                                 
@@ -378,13 +355,12 @@ pub fn run() {
                                     eprintln!("设置自启动失败: {}", e);
                                 } else {
                                     let _ = save_config(app.clone(), app_state.clone());
-                                    // 更新菜单项状态
                                     update_tray_menu(app);
                                 }
                             }
                         }
                         "silent_start" => {
-                            if let Ok(config) = app_state.config.lock() {
+                            if let Ok(config) = app_state.app_config.lock() {
                                 let new_state = !config.silent_start;
                                 drop(config);
                                 
@@ -392,7 +368,6 @@ pub fn run() {
                                     eprintln!("设置静默启动失败: {}", e);
                                 } else {
                                     let _ = save_config(app.clone(), app_state.clone());
-                                    // 更新菜单项状态
                                     update_tray_menu(app);
                                 }
                             }
@@ -440,7 +415,6 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             get_config,
             set_auto_start,
             set_silent_start,
