@@ -1,4 +1,5 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { invoke } from '@tauri-apps/api/core';
 import OSC from 'osc-js';
 
 // ===================== 类型定义 =====================
@@ -7,6 +8,12 @@ interface LogEntry {
   type: 'sent' | 'received' | 'error' | 'warning' | 'info';
   message: string;
   direction?: '→' | '←';
+}
+
+interface BridgeConfig {
+    ListenPorts: string[];
+    TargetPorts: string[];
+    WS: string[];
 }
 
 // ===================== 全局变量 =====================
@@ -27,7 +34,6 @@ let autoScrollCheckbox: HTMLInputElement;
 let settingsModal: HTMLElement;
 let settingsBtn: HTMLButtonElement;
 let closeSettingsBtn: HTMLButtonElement;
-let wsUrlInput: HTMLInputElement;
 let listenPortsContainer: HTMLElement;
 let addListenPortBtn: HTMLButtonElement;
 let forwardTargetsContainer: HTMLElement;
@@ -37,7 +43,8 @@ let saveSettingsBtn: HTMLButtonElement;
 // App-wide config object
 const config = {
   listenPorts: [] as string[],
-  forwardTargets: [] as string[]
+  forwardTargets: [] as string[],
+  wsUrl: ''
 };
 
 // ===================== 初始化 =====================
@@ -45,7 +52,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('OSC Bridge 控制面板正在初始化...');
   
   initializeElements();
-  await loadConfigFromServer(); // 等待配置加载完成
+  await loadInitialConfig(); // 等待配置加载完成
   setupEventListeners();
   connectWebSocket();
   console.log('✅ 初始化完成。');
@@ -65,7 +72,6 @@ function initializeElements() {
   settingsModal = document.getElementById('settings-modal') as HTMLElement;
   settingsBtn = document.getElementById('settings-btn') as HTMLButtonElement;
   closeSettingsBtn = document.getElementById('close-settings-btn') as HTMLButtonElement;
-  wsUrlInput = document.getElementById('ws-url-input') as HTMLInputElement;
   listenPortsContainer = document.getElementById('listen-ports-container') as HTMLElement;
   addListenPortBtn = document.getElementById('add-listen-port-btn') as HTMLButtonElement;
   forwardTargetsContainer = document.getElementById('forward-targets-container') as HTMLElement;
@@ -82,59 +88,36 @@ function initializeElements() {
   initTrayConfig();
 }
 
-async function loadConfigFromServer(retries = 5, delay = 500) {
-  console.log(`🔄 开始从服务器加载配置... (剩余尝试: ${retries})`);
-  try {
-    const response = await fetch('http://localhost:9122/config');
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    const serverConfig = await response.json();
-    console.log('📄 解析后的服务器配置数据:', serverConfig);
-    
-    config.listenPorts = serverConfig.ListenPorts || [];
-    config.forwardTargets = serverConfig.TargetPorts || [];
-    
+async function loadInitialConfig() {
     addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'info',
-      message: `✅ 本地端口配置加载成功`
+        timestamp: getCurrentTimestamp(),
+        type: 'info',
+        message: '🚀 前端就绪, 向后端请求初始配置...'
     });
-    
-    updateHeaderInfo(); // 加载成功后更新头部信息
 
-    // 检查配置是否为空，如果为空则自动打开设置窗口
-    if (config.listenPorts.length === 0 && config.forwardTargets.length === 0) {
+    try {
+        const serverConfig = await invoke<BridgeConfig>('get_bridge_config');
+        console.log('🎉 从后端成功获取配置:', serverConfig);
+
+        config.listenPorts = serverConfig.ListenPorts || [];
+        config.forwardTargets = serverConfig.TargetPorts || [];
+        config.wsUrl = (serverConfig.WS && serverConfig.WS[0]) || 'ws://localhost:9122';
+
         addSystemLog({
             timestamp: getCurrentTimestamp(),
-            type: 'warning',
-            message: '🤔 配置为空, 自动打开设置窗口。'
+            type: 'info',
+            message: `✅ 配置已从后端接收并加载`
         });
-        populateSettings();
-        settingsModal.style.display = 'flex';
-    }
-    
-  } catch (error) {
-    if (retries > 0) {
-        addSystemLog({
-            timestamp: getCurrentTimestamp(),
-            type: 'warning',
-            message: `⚠️ 加载配置失败，${delay/1000}秒后重试... (${error})`
-        });
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return loadConfigFromServer(retries - 1, delay);
-    } else {
+
+        updateHeaderInfo(); // 使用收到的配置更新UI
+
+    } catch (error) {
         addSystemLog({
             timestamp: getCurrentTimestamp(),
             type: 'error',
-            message: `❌ 加载本地端口配置失败: ${error}. 将使用默认空配置.`
+            message: `❌ 获取初始配置失败: ${error}`
         });
-        updateHeaderInfo(); // 最终失败也要更新，显示"无"
-        // 最终失败后，也打开设置窗口
-        populateSettings();
-        settingsModal.style.display = 'flex';
     }
-  }
 }
 
 function updateHeaderInfo() {
@@ -592,48 +575,6 @@ async function getTrayConfig() {
   }
 }
 
-// 设置自启动（暂时未使用）
-// async function setAutoStart(enabled: boolean) {
-//   try {
-//     // @ts-ignore
-//     await window.__TAURI__.core.invoke('set_auto_start', { enabled });
-//     // @ts-ignore
-//     await window.__TAURI__.core.invoke('save_config');
-//     addSystemLog({
-//       timestamp: getCurrentTimestamp(),
-//       type: 'info',
-//       message: `✅ 开机自启已${enabled ? '启用' : '禁用'}`
-//     });
-//   } catch (error) {
-//     addSystemLog({
-//       timestamp: getCurrentTimestamp(),
-//       type: 'error',
-//       message: `❌ 设置开机自启失败: ${error}`
-//     });
-//   }
-// }
-
-// 设置静默启动（暂时未使用）
-// async function setSilentStart(enabled: boolean) {
-//   try {
-//     // @ts-ignore
-//     await window.__TAURI__.core.invoke('set_silent_start', { enabled });
-//     // @ts-ignore
-//     await window.__TAURI__.core.invoke('save_config');
-//     addSystemLog({
-//     timestamp: getCurrentTimestamp(),
-//     type: 'info',
-//       message: `✅ 静默启动已${enabled ? '启用' : '禁用'}`
-//     });
-//   } catch (error) {
-//     addSystemLog({
-//       timestamp: getCurrentTimestamp(),
-//       type: 'error',
-//       message: `❌ 设置静默启动失败: ${error}`
-//     });
-//   }
-// }
-
 // 初始化托盘配置
 async function initTrayConfig() {
   try {
@@ -655,9 +596,6 @@ function populateSettings() {
   // 清空现有列表
   listenPortsContainer.innerHTML = '';
   forwardTargetsContainer.innerHTML = '';
-
-  // 填充WebSocket URL (暂时只读)
-  // wsUrlInput.value = 'ws://localhost:9122'; // 暂时硬编码
 
   // 填充监听端口
   config.listenPorts.forEach(port => {
@@ -709,7 +647,7 @@ async function saveConfigToServer() {
   const newConfig = {
     ListenPorts: listenPorts,
     TargetPorts: forwardTargets,
-    WS: [wsUrlInput.value] // 读取WS地址
+    WS: [config.wsUrl] // 使用从配置中读取的WS地址
   };
   
   console.log('  -> 准备发送到服务器的新配置:', newConfig);
@@ -731,6 +669,7 @@ async function saveConfigToServer() {
     // 更新本地的全局config对象
     config.listenPorts = result.ListenPorts;
     config.forwardTargets = result.TargetPorts;
+    config.wsUrl = (result.WS && result.WS[0]) || 'ws://localhost:9122';
     
     addSystemLog({
       timestamp: getCurrentTimestamp(),

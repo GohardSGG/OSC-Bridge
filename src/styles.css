@@ -59,7 +59,7 @@ html, body {
 
 body {
   font-family: 'Segoe UI', 'Microsoft YaHei UI', 'Meiryo UI', sans-serif;
-  background-color: var(--bg-primary);
+  background-color: transparent;
   color: var(--text-primary);
   line-height: 1.6;
   display: flex;
@@ -890,7 +890,7 @@ input[type="text"],
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  display: flex;
+  display: none; /* 默认隐藏 */
   align-items: center;
   justify-content: center;
   z-index: 1000;

@@ -50,6 +50,14 @@ struct AppState {
     auto_launch: Mutex<Option<AutoLaunch>>,
 }
 
+// 新增命令，用于前端主动获取初始的OSC配置
+// 这是解决启动时序问题的最可靠方法
+#[tauri::command]
+fn get_bridge_config(state: State<AppState>) -> Result<BridgeConfig, String> {
+    let config = state.bridge_config.lock().map_err(|e| e.to_string())?;
+    Ok(config.clone())
+}
+
 #[tauri::command]
 fn get_config(state: State<AppState>) -> Result<AppConfig, String> {
     let config = state.app_config.lock().map_err(|e| e.to_string())?;
@@ -167,18 +175,30 @@ fn load_bridge_config() -> BridgeConfig {
         if let Some(exe_dir) = exe_path.parent() {
             let config_path = exe_dir.join("config.json");
             println!("正在从以下路径加载OSC配置: {:?}", config_path);
+
+            // 如果配置文件存在，则尝试读取和解析
             if config_path.exists() {
-                if let Ok(content) = std::fs::read_to_string(config_path) {
+                if let Ok(content) = std::fs::read_to_string(&config_path) {
                     // 如果解析成功，则返回解析后的配置，否则返回默认配置
                     return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
                         eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
                         BridgeConfig::default()
                     });
                 }
+            } else {
+                // 如果配置文件不存在，则创建并写入默认配置
+                println!("未找到 config.json，将创建默认配置文件。");
+                let default_config = BridgeConfig::default();
+                if let Ok(config_json) = serde_json::to_string_pretty(&default_config) {
+                    if let Err(e) = std::fs::write(&config_path, config_json) {
+                        eprintln!("创建默认 config.json 失败: {}", e);
+                    }
+                }
+                return default_config;
             }
         }
     }
-    println!("未找到 config.json 或路径错误，将使用默认OSC配置");
+    println!("无法确定可执行文件路径，将使用默认OSC配置");
     BridgeConfig::default()
 }
 
@@ -252,6 +272,11 @@ pub fn run() {
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             
+            // 强制设置窗口尺寸和位置，以覆盖 tauri-plugin-store 的状态恢复
+            // 使用 LogicalSize 来确保在不同DPI的屏幕上表现一致
+            let _ = window.set_size(tauri::LogicalSize::new(900, 630));
+            let _ = window.center();
+
             #[cfg(target_os = "windows")]
             apply_blur(&window, Some((0, 0, 0, 0)))
                 .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
@@ -415,6 +440,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            get_bridge_config,
             get_config,
             set_auto_start,
             set_silent_start,
