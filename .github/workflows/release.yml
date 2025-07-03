@@ -9,15 +9,31 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
+  # 1. 创建 Release 的任务
+  create-release:
+    runs-on: ubuntu-latest
+    
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }} # 输出上传URL给后续任务使用
+
+    steps:
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # 从 Git 标签中提取 Release 名称和内容
+          generate_release_notes: true 
+
+  # 2. 构建并上传应用的任务
   build-tauri:
-    # 使用策略矩阵来为所有目标平台并行构建
+    needs: create-release # 依赖于上一个任务
     strategy:
       fail-fast: false
       matrix:
-        # 定义目标平台
         platform: [macos-latest, ubuntu-latest, windows-latest]
 
-    # 在对应的虚拟机上运行
     runs-on: ${{ matrix.platform }}
     steps:
       # 1. 检出你的代码
@@ -56,12 +72,13 @@ jobs:
           args: --verbose
           # 注意：tauri-action v0 会自动找到 AppName 和 AppVersion，无需手动指定
 
-      # 7. (可选但推荐) 将构建产物上传到 GitHub Release
-      # 这一步不是必须的，但可以让下载更方便
+      # 3. 使用新的专用 Action 上传构建产物
       - name: Upload Release Assets
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # 告诉 Action 这是上传步骤
+          # 明确告诉它上传到哪个 URL
+          uploadUrl: ${{ needs.create-release.outputs.upload_url }}
+          # 告诉它这是上传步骤
           action: upload-release-assets 

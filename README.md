@@ -7,6 +7,10 @@
 
 一个基于 Tauri 和 Rust 构建的现代化、高性能 OSC（Open Sound Control）桥接工具，专为需要可靠、低延迟通信的音频制作和现场控制场景设计。
 
+<div align="center">
+  <img src="Example.png" alt="OSC-Bridge 界面截图" width="800"/>
+</div>
+
 ## 📖 项目简介
 
 OSC-Bridge 是一个轻量级的桌面应用程序，它在 WebSocket 客户端（如网页控制端）和需要 OSC 控制的设备或软件（如 REAPER 等数字音频工作站）之间建立起一个高效、双向的通信桥梁。
