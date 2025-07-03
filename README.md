@@ -1,194 +1,159 @@
-# 🎵 OSC Bridge - 桌面控制面板
+# 🎵 OSC-Bridge - 现代化OSC桥接与控制面板
 
-一个基于 Tauri 构建的现代化 OSC（Open Sound Control）桥接工具，专为音频制作和现场演出设计。
+[![Tauri](https://img.shields.io/badge/Tauri-FFC131?style=for-the-badge&logo=Tauri&logoColor=white)](https://tauri.app/)
+[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/GohardSGG/OSC-Bridge/release.yml?style=for-the-badge&logo=githubactions)](https://github.com/GohardSGG/OSC-Bridge/actions/workflows/release.yml)
 
-![OSC Bridge Logo](https://img.shields.io/badge/OSC-Bridge-blue?style=for-the-badge&logo=music&logoColor=white)
-![Tauri](https://img.shields.io/badge/Tauri-FFC131?style=for-the-badge&logo=Tauri&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
+一个基于 Tauri 和 Rust 构建的现代化、高性能 OSC（Open Sound Control）桥接工具，专为需要可靠、低延迟通信的音频制作和现场控制场景设计。
 
 ## 📖 项目简介
 
-OSC Bridge 是一个功能强大的桌面应用程序，它在网页客户端和 OSC 设备（如 REAPER 数字音频工作站）之间建立双向通信桥梁。通过现代化的图形界面，用户可以轻松地发送 OSC 指令、监控设备状态，并实时查看所有通信日志。
+OSC-Bridge 是一个轻量级的桌面应用程序，它在 WebSocket 客户端（如网页控制端）和需要 OSC 控制的设备或软件（如 REAPER 等数字音频工作站）之间建立起一个高效、双向的通信桥梁。
+
+通过其简洁的控制面板，用户可以轻松地发送测试指令、实时监控所有OSC通信数据流，并对应用的启动行为进行配置。
 
 ### 🎯 核心功能
 
-- **🔄 双向 OSC 通信**：支持发送控制指令和接收状态反馈
-- **🖥️ 现代化界面**：深色主题的专业控制面板
-- **📊 实时日志监控**：替代传统命令行，提供美观的日志显示
-- **⚡ 快速操作**：预设常用的 OSC 指令按钮
-- **🔧 自动化启动**：一键启动所有后台服务
-- **💾 预设管理**：保存和加载不同场景的配置
+- **🚀 高性能Rust后端**：完全由Rust构建，提供低延迟、高可靠性的桥接服务。
+- **🔄 双向OSC通信**：同时支持从WebSocket转发到UDP，以及从UDP转发到WebSocket。
+- **🖥️ 现代化监控界面**：使用Vue和TypeScript构建，提供清晰的实时日志监控。
+- **🔧 动态配置**：通过图形化界面轻松添加或删除监听端口和转发目标。
+- **⚙️ 系统集成**：
+  - **开机自启**：可配置应用随系统自动启动。
+  - **静默启动**：启动时自动隐藏主窗口，仅在后台运行。
+  - **系统托盘**：提供托盘图标，方便快速访问和控制。
 
 ## 🏗️ 技术架构
 
-```
-┌─────────────────────────────────────────────┐
-│              前端界面 (Tauri)                 │
-│     HTML + CSS + TypeScript + OSC.js      │
-└─────────────────┬───────────────────────────┘
-                  │ WebSocket (ws://localhost:9122)
-┌─────────────────▼───────────────────────────┐
-│           OSC 桥接服务 (Node.js)             │
-│        Express + WebSocket Server          │
-└─────────┬───────────────────────────┬───────┘
-          │ UDP:7878, 9223 (发送)     │ UDP:7879, 9222 (接收)
-          ▼                           ▼
-┌─────────────────────────────────────────────┐
-│              REAPER DAW                    │
-│           OSC 控制端点                      │
-└─────────────────────────────────────────────┘
+项目的架构现已完全统一为 Tauri，不再依赖外部的 Node.js 服务。
+
+```mermaid
+graph TD
+    subgraph "OSC-Bridge 应用"
+        A[前端界面<br>Tauri + Vue + TS]
+        B[Rust 后端<br>Tauri + Axum + Tokio]
+    end
+
+    C[OSC设备/软件<br>例如: REAPER]
+
+    A -- WebSocket<br>ws://localhost:9122 -- B
+    B -- UDP<br>发送/接收 -- C
 ```
 
 ## 🚀 功能特性
 
 ### 🎛️ 控制面板
-- **OSC 消息发送**：自定义地址和参数
-- **快速操作按钮**：播放、停止、录制、静音等
-- **参数类型支持**：数字、字符串、布尔值自动识别
+- **OSC 消息发送**：内置一个简易的OSC消息发送工具，用于快速测试。
+- **实时日志**：
+    - **方向指示**：清晰地区分发送 (→) 和接收 (←) 的消息。
+    - **来源与目标**：明确展示每一条消息的来源与去向。
+    - **颜色编码**：结构化的消息使用不同颜色高亮显示，一目了然。
+    - **高级搜索**：支持多关键词搜索，快速定位特定消息。
+    - **自动滚动**：可选的自动滚动到最新消息。
+- **连接状态**：实时显示WebSocket的连接状态。
 
-### 📋 实时日志
-- **方向指示**：清晰区分发送 (→) 和接收 (←) 的消息
-- **时间戳**：精确到秒的消息时间记录
-- **颜色编码**：不同类型消息使用不同颜色显示
-- **自动滚动**：可选的自动滚动到最新消息
-
-### 🔌 连接状态
-- **实时状态指示器**：绿色/红色指示灯显示连接状态
-- **端口信息显示**：监听和转发端口的实时显示
-- **自动重连**：连接断开时自动尝试重连
+### ⚙️ 设置与配置
+- **动态端口管理**：在设置弹窗中，可以随时添加或删除监听的UDP端口和需要转发到的UDP目标地址。
+- **自动保存**：所有配置更改都会自动保存到应用目录下的 `config.json` 文件中。
+- **首次运行**：应用首次启动时，会自动在可执行文件旁边创建一个默认的 `config.json` 文件。
+- **系统托盘菜单**：
+  - 显示/隐藏主窗口。
+  - 一键启用/禁用开机自启。
+  - 一键启用/禁用静默启动。
+  - 退出应用。
 
 ## 🛠️ 安装与使用
 
 ### 环境要求
+- **Node.js & npm** (用于前端构建)
+- **Rust & Cargo** (最新稳定版)
+- **操作系统**: Windows, macOS, Linux (已通过GitHub Actions进行跨平台构建验证)
 
-- **Node.js** (v16 或更高版本)
-- **Rust** (最新稳定版)
-- **操作系统**：Windows 10/11, macOS, Linux
-
-### 快速开始
+### 开发模式
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/your-username/osc-bridge.git
-   cd osc-bridge
+   git clone https://github.com/GohardSGG/OSC-Bridge.git
+   cd OSC-Bridge
    ```
 
 2. **安装依赖**
    ```bash
    npm install
-   cd sidecar && npm install && cd ..
    ```
 
-3. **开发模式运行**
+3. **运行开发服务器**
    ```bash
    npm run tauri dev
    ```
 
-4. **构建生产版本**
+### 生产构建
+
+1. **本地构建**
    ```bash
    npm run tauri build
    ```
+   构建产物位于 `src-tauri/target/release/` 目录中。
 
-### 📦 打包发布
-
-构建完成后，可执行文件将生成在 `src-tauri/target/release/` 目录中：
-
-- **Windows**: `osc-bridge.exe`
-- **macOS**: `osc-bridge.app`
-- **Linux**: `osc-bridge`
-
-## 🎮 使用指南
-
-### 基本操作
-
-1. **启动应用**：双击可执行文件，应用会自动启动后台服务
-2. **发送 OSC 消息**：
-   - 在"OSC 地址"输入框中输入目标地址（如 `/track/1/volume`）
-   - 在"参数"输入框中输入参数值（如 `0.75`）
-   - 点击"发送 OSC 消息"按钮
-3. **使用快速按钮**：点击预设的快速操作按钮（播放、停止等）
-4. **查看日志**：右侧日志面板会实时显示所有通信记录
-
-### 高级功能
-
-- **清除日志**：点击"清除日志"按钮清空当前日志
-- **自动滚动**：勾选"自动滚动"复选框，日志会自动滚动到最新条目
-- **预设管理**：通过 HTTP API 保存和加载不同场景的配置
+2. **通过 GitHub Actions 自动构建 (推荐)**
+   - **创建标签**: `git tag vX.Y.Z` (例如: `git tag v0.9.6`)
+   - **推送标签**: `git push origin vX.Y.Z`
+   - GitHub Actions 将会自动为您构建所有平台（Windows, macOS, Linux）的安装包，并上传到该版本的 GitHub Release 中。
 
 ## 🔧 配置说明
 
-### 默认端口配置
+应用的所有配置都存储在与可执行文件同目录下的 `config.json` 文件中。该文件会在首次启动时自动创建。
 
-| 用途 | 端口 | 协议 | 说明 |
-|------|------|------|------|
-| WebSocket 服务 | 9122 | TCP | 前端与后台通信 |
-| REAPER 控制 | 7878 | UDP | 发送控制指令 |
-| REAPER 反馈 | 7879 | UDP | 接收状态反馈 |
-| 扩展控制 | 9223 | UDP | 额外控制端口 |
-| 脚本反馈 | 9222 | UDP | REAPER 脚本反馈 |
-
-### 预设存储
-
-预设文件默认保存在：`C:/Web/Vue/Reaper Web/presets/`
-
-可通过以下 API 进行管理：
-- **保存预设**：`POST /presets/{name}`
-- **读取预设**：`GET /presets/{name}`
-
-## 🎨 界面预览
-
-### 主界面
+**示例 `config.json`:**
+```json
+{
+  "ListenPorts": [
+    "127.0.0.1:7879",
+    "127.0.0.1:9222"
+  ],
+  "TargetPorts": [
+    "127.0.0.1:7878",
+    "127.0.0.1:9223"
+  ],
+  "WS": [
+    "ws://localhost:9122"
+  ]
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ ● WebSocket: 已连接  📡 监听: 7879,9222  🎯 目标: 7878,9223   │
-├─────────────────┬───────────────────────────────────────────┤
-│   控制面板       │              实时日志                      │
-│                │                                           │
-│ OSC 地址:       │ [14:30:25] → 发送 OSC | /track/1/volume   │
-│ /track/1/volume │ [14:30:25] ← 接收 OSC | /track/1/fader_db │
-│                │ [14:30:26] → 发送 OSC | /play             │
-│ 参数:           │ [14:30:26] ← 接收 OSC | /time/str         │
-│ 0.75           │                                           │
-│                │                                           │
-│ [发送 OSC 消息]  │                                           │
-│                │                                           │
-│ 快速操作:       │                                           │
-│ [停止] [播放]   │                                           │
-│ [录制] [静音]   │                                           │
-└─────────────────┴───────────────────────────────────────────┘
-```
+
+- **`ListenPorts`**: 一个数组，包含所有需要监听的UDP地址 (`IP:端口`)。
+- **`TargetPorts`**: 一个数组，包含所有需要将从WebSocket收到的消息转发到的UDP目标地址。
+- **`WS`**: WebSocket服务器的监听地址。
 
 ## 🤝 贡献指南
 
-我们欢迎所有形式的贡献！
+我们欢迎所有形式的贡献！请遵循以下步骤：
 
-1. **Fork** 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 **Pull Request**
+1. **Fork** 本仓库。
+2. 创建您的特性分支 (`git checkout -b feature/AmazingFeature`)。
+3. 提交您的更改 (`git commit -m 'feat: Add some AmazingFeature'`)。
+4. 推送到分支 (`git push origin feature/AmazingFeature`)。
+5. 开启一个 **Pull Request**。
 
 ## 📝 更新日志
 
-### v1.0.0 (2025-01-07)
-- ✨ 初始版本发布
-- 🎯 基本的 OSC 双向通信功能
-- 🖥️ 现代化的桌面界面
-- 📊 实时日志监控系统
-- ⚡ 快速操作按钮
-- 💾 预设管理功能
+### v0.9.5 (2024-XX-XX)
+- 🚀 **架构重构**: 后端完全由 Node.js 迁移到 Rust，实现零外部依赖。
+- ⚙️ **功能增强**: 新增开机自启、静默启动和系统托盘菜单。
+- 🔧 **配置优化**: 实现 `config.json` 的自动创建与热重载。
+- 🐛 **问题修复**: 解决了大量在构建版本中出现的启动时序、窗口尺寸和样式问题。
+- 🤖 **CI/CD**: 配置了 GitHub Actions 以实现跨平台自动化构建。
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+本项目采用 MIT 许可证 - 查看 [LICENSE.md](LICENSE.md) 文件了解详情。
 
 ## 🙏 致谢
 
-- [Tauri](https://tauri.app/) - 现代化的桌面应用框架
-- [OSC.js](https://github.com/adzialocha/osc-js) - JavaScript OSC 库
-- [Express](https://expressjs.com/) - Node.js Web 框架
-- [WebSocket](https://github.com/websockets/ws) - WebSocket 实现
+- [Tauri](https://tauri.app/) - 强大的桌面应用框架。
+- [Axum](https://github.com/tokio-rs/axum) & [Tokio](https://tokio.rs/) - 驱动高性能Rust后端的异步网络库。
+- 所有为本项目提供灵感和帮助的开源社区。
 
 ---
 
@@ -196,6 +161,6 @@ OSC Bridge 是一个功能强大的桌面应用程序，它在网页客户端和
 
 **如果这个项目对你有帮助，请给它一个 ⭐！**
 
-[🐛 报告问题](https://github.com/your-username/osc-bridge/issues) • [💡 功能建议](https://github.com/your-username/osc-bridge/issues) • [📖 文档](https://github.com/your-username/osc-bridge/wiki)
+[🐛 报告问题](https://github.com/GohardSGG/OSC-Bridge/issues) • [💡 功能建议](https://github.com/GohardSGG/OSC-Bridge/issues)
 
 </div>
