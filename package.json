@@ -15,6 +15,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "express": "^5.1.0",
     "osc-js": "^2.4.1",
+    "puppeteer": "^24.11.2",
     "ws": "^8.18.3"
   },
   "devDependencies": {

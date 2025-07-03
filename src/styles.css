@@ -238,6 +238,20 @@ input[type="text"],
   font-size: 0.85rem;
 }
 
+.args-send-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.args-send-wrapper input {
+  flex-grow: 1; /* 输入框占据剩余空间 */
+}
+
+.args-send-wrapper .btn {
+  flex-shrink: 0; /* 防止按钮被压缩 */
+}
+
 .form-group input {
   width: 100%;
   padding: 0.6rem 0.9rem;
@@ -464,7 +478,7 @@ input[type="text"],
   border-radius: 6px;
   transition: all 0.2s ease;
   background: transparent;
-  border-left: 2px solid transparent;
+  /* border-left: 2px solid transparent; */ /* 移除左边框 */
   font-family: "SimHei", "Microsoft YaHei", "黑体", "Arial Black", sans-serif; /* 日志条目使用黑体 */
 }
 
@@ -473,6 +487,7 @@ input[type="text"],
   transform: translateX(2px);
 }
 
+/* 移除所有 .log-entry 的颜色边框样式
 .log-entry.sent {
   border-left-color: var(--accent-blue);
 }
@@ -492,10 +507,10 @@ input[type="text"],
 .log-entry.info {
   border-left-color: var(--accent-purple);
 }
-
+*/
 .timestamp {
   color: var(--text-muted);
-  margin-right: 0.8rem;
+  margin-right: 0rem;
   flex-shrink: 0;
   min-width: 70px;
   font-weight: 500;
@@ -1026,4 +1041,12 @@ input[type="text"],
 
 .btn-add-item:hover {
   background: #4c51bf;
+}
+
+#osc-form .form-group {
+    margin-bottom: 0.8rem;
+}
+
+#osc-form .form-group:last-child {
+    margin-bottom: 0;
 }
