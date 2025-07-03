@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ws://localhost:*"
+      "csp": "default-src 'self'; connect-src 'self' ws://localhost:* http://localhost:*"
     }
   },
   "plugins": {

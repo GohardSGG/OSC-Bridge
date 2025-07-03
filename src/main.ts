@@ -82,11 +82,10 @@ function initializeElements() {
   initTrayConfig();
 }
 
-async function loadConfigFromServer() {
-  console.log('🔄 开始从服务器加载配置...');
+async function loadConfigFromServer(retries = 5, delay = 500) {
+  console.log(`🔄 开始从服务器加载配置... (剩余尝试: ${retries})`);
   try {
     const response = await fetch('http://localhost:9122/config');
-    console.log('📡 从服务器收到响应:', response);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -101,21 +100,41 @@ async function loadConfigFromServer() {
       type: 'info',
       message: `✅ 本地端口配置加载成功`
     });
-    addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'info',
-      message: `🔧 本地端口配置优先，跳过默认端口配置`
-    });
+    
+    updateHeaderInfo(); // 加载成功后更新头部信息
+
+    // 检查配置是否为空，如果为空则自动打开设置窗口
+    if (config.listenPorts.length === 0 && config.forwardTargets.length === 0) {
+        addSystemLog({
+            timestamp: getCurrentTimestamp(),
+            type: 'warning',
+            message: '🤔 配置为空, 自动打开设置窗口。'
+        });
+        populateSettings();
+        settingsModal.style.display = 'flex';
+    }
     
   } catch (error) {
-    addSystemLog({
-      timestamp: getCurrentTimestamp(),
-      type: 'error',
-      message: `❌ 加载本地端口配置失败: ${error}. 将使用默认空配置.`
-    });
+    if (retries > 0) {
+        addSystemLog({
+            timestamp: getCurrentTimestamp(),
+            type: 'warning',
+            message: `⚠️ 加载配置失败，${delay/1000}秒后重试... (${error})`
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return loadConfigFromServer(retries - 1, delay);
+    } else {
+        addSystemLog({
+            timestamp: getCurrentTimestamp(),
+            type: 'error',
+            message: `❌ 加载本地端口配置失败: ${error}. 将使用默认空配置.`
+        });
+        updateHeaderInfo(); // 最终失败也要更新，显示"无"
+        // 最终失败后，也打开设置窗口
+        populateSettings();
+        settingsModal.style.display = 'flex';
+    }
   }
-  // 无论成功与否，都更新顶部信息栏
-  updateHeaderInfo();
 }
 
 function updateHeaderInfo() {

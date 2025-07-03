@@ -423,16 +423,34 @@ async fn get_config_handler(State(state): State<Arc<BridgeState>>) -> impl IntoR
 async fn save_config_handler(State(state): State<Arc<BridgeState>>, Json(payload): Json<BridgeConfig>) -> impl IntoResponse {
     info!("Serving POST /save-config");
     *state.app_handle.state::<AppState>().bridge_config.lock().unwrap() = payload.clone();
-    let config_path = state.app_handle.path().resolve("../config.json", tauri::path::BaseDirectory::Resource).unwrap();
+    
+    // 确定可执行文件所在的目录，以正确保存config.json
+    // 这是修复生产环境（构建版本）无法写入配置的关键
+    let config_path = match std::env::current_exe() {
+        Ok(exe_path) => {
+            if let Some(exe_dir) = exe_path.parent() {
+                exe_dir.join("config.json")
+            } else {
+                error!("无法获取可执行文件的父目录。");
+                return (StatusCode::INTERNAL_SERVER_ERROR, "无法确定可执行文件目录").into_response();
+            }
+        },
+        Err(e) => {
+            error!("无法获取当前可执行文件的路径: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "无法确定可执行文件路径").into_response();
+        }
+    };
+
     let config_json = serde_json::to_string_pretty(&payload).unwrap();
     if let Err(e) = tokio::fs::write(&config_path, config_json).await {
-        error!("Failed to write config file: {}", e);
+        error!("写入配置文件失败: {:?}: {}", &config_path, e);
         return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to write config").into_response();
     }
-    info!("Config saved. Triggering UDP reload...");
+
+    info!("配置已保存到 {:?}。正在触发UDP服务重载...", &config_path);
     let _ = state.log_tx.send(serde_json::to_string(&FrontendLog::System("Config saved. Reloading UDP...".to_string())).unwrap());
     if state.udp_reload_tx.send(()).await.is_err() {
-        error!("Failed to send UDP reload signal.");
+        error!("发送UDP重载信号失败。");
     }
     Json(payload).into_response()
 }
