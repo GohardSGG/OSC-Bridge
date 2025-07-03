@@ -31,14 +31,14 @@ OSC-Bridge 是一个轻量级的桌面应用程序，它在 WebSocket 客户端�
 ```mermaid
 graph TD
     subgraph "OSC-Bridge 应用"
-        A[前端界面<br>Tauri + Vue + TS]
-        B[Rust 后端<br>Tauri + Axum + Tokio]
+        A["前端 (Tauri UI)"]
+        B["后端 (Rust)"]
     end
 
-    C[OSC设备/软件<br>例如: REAPER]
+    C["OSC 设备 (e.g., REAPER)"]
 
-    A -- WebSocket<br>ws://localhost:9122 -- B
-    B -- UDP<br>发送/接收 -- C
+    A -- WebSocket --> B
+    B -- UDP --> C
 ```
 
 ## 🚀 功能特性
