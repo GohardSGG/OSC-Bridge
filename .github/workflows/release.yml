@@ -1,0 +1,67 @@
+# .github/workflows/release.yml
+
+name: 'Release: Build Cross-Platform Binaries'
+
+# 这个工作流在创建新的 git 标签（如 v1.0.0）时触发
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  build-tauri:
+    # 使用策略矩阵来为所有目标平台并行构建
+    strategy:
+      fail-fast: false
+      matrix:
+        # 定义目标平台
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    # 在对应的虚拟机上运行
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # 1. 检出你的代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置 Node.js 环境 (用于 npm)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 你可以根据需要更改 Node.js 版本
+
+      # 3. 安装 Rust 工具链
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # 4. (仅Linux) 安装必要的系统依赖
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # 5. 安装前端依赖 (使用 npm ci 更快更稳定)
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # 6. 使用官方的 Tauri Action 来构建应用
+      # 它会自动处理所有复杂的细节
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # `tauri build` 命令的参数
+          args: --verbose
+          # 注意：tauri-action v0 会自动找到 AppName 和 AppVersion，无需手动指定
+
+      # 7. (可选但推荐) 将构建产物上传到 GitHub Release
+      # 这一步不是必须的，但可以让下载更方便
+      - name: Upload Release Assets
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # 告诉 Action 这是上传步骤
+          action: upload-release-assets 
