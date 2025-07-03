@@ -3,7 +3,6 @@ use tauri::{AppHandle, Manager, State};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use auto_launch::AutoLaunch;
-use window_vibrancy::apply_blur;
 
 mod bridge; // 声明新的 bridge 模块
 
@@ -76,8 +75,16 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
         vec![]
     };
     
+    #[cfg(target_os = "macos")]
     let new_auto_launch = AutoLaunch::new(
-        "OSC Bridge",
+        "OSC-Bridge",
+        &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
+        true, // 在macOS上使用Launch Agent
+        &args,
+    );
+    #[cfg(not(target_os = "macos"))]
+    let new_auto_launch = AutoLaunch::new(
+        "OSC-Bridge",
         &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
         &args,
     );
@@ -107,8 +114,16 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
             vec![]
         };
         
+        #[cfg(target_os = "macos")]
         let new_auto_launch = AutoLaunch::new(
-            "OSC Bridge",
+            "OSC-Bridge",
+            &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
+            true, // 在macOS上使用Launch Agent
+            &args,
+        );
+        #[cfg(not(target_os = "macos"))]
+        let new_auto_launch = AutoLaunch::new(
+            "OSC-Bridge",
             &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
             &args,
         );
@@ -278,8 +293,11 @@ pub fn run() {
             let _ = window.center();
 
             #[cfg(target_os = "windows")]
-            apply_blur(&window, Some((0, 0, 0, 0)))
-                .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
+            {
+                use window_vibrancy::apply_blur;
+                apply_blur(&window, Some((0, 0, 0, 0)))
+                    .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
+            }
 
             // 1. 加载所有配置
             let app_config = load_app_config(&app.handle());
@@ -301,8 +319,16 @@ pub fn run() {
                 vec![]
             };
             
+            #[cfg(target_os = "macos")]
             let auto_launch = AutoLaunch::new(
-                "OSC Bridge",
+                "OSC-Bridge",
+                &std::env::current_exe().unwrap().to_string_lossy(),
+                true, // 在macOS上使用Launch Agent
+                &args,
+            );
+            #[cfg(not(target_os = "macos"))]
+            let auto_launch = AutoLaunch::new(
+                "OSC-Bridge",
                 &std::env::current_exe().unwrap().to_string_lossy(),
                 &args,
             );
