@@ -2,6 +2,9 @@
 
 name: 'Release: Build Cross-Platform Binaries'
 
+permissions:
+  contents: write
+
 # 这个工作流在创建新的 git 标签（如 v1.0.0）时触发
 on:
   push:
@@ -9,26 +12,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
-  # 1. 创建 Release 的任务
-  create-release:
-    runs-on: ubuntu-latest
-    
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }} # 输出上传URL给后续任务使用
-
-    steps:
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # 从 Git 标签中提取 Release 名称和内容
-          generate_release_notes: true 
-
-  # 2. 构建并上传应用的任务
   build-tauri:
-    needs: create-release # 依赖于上一个任务
     strategy:
       fail-fast: false
       matrix:
@@ -61,24 +45,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # 6. 使用官方的 Tauri Action 来构建应用
-      # 它会自动处理所有复杂的细节
-      - name: Build Tauri App
+      # 使用单一的、包含所有功能的 tauri-action 步骤
+      - name: Build and Upload Release Assets
         uses: tauri-apps/tauri-action@v0
         env:
+          # GITHUB_TOKEN 是必需的，用于向你的仓库推送 Release
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # `tauri build` 命令的参数
-          args: --verbose
-          # 注意：tauri-action v0 会自动找到 AppName 和 AppVersion，无需手动指定
-
-      # 3. 使用新的专用 Action 上传构建产物
-      - name: Upload Release Assets
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # 明确告诉它上传到哪个 URL
-          uploadUrl: ${{ needs.create-release.outputs.upload_url }}
-          # 告诉它这是上传步骤
-          action: upload-release-assets 
+          # tauri-action 会自动从 git 标签中获取版本号
+          # 例如，如果标签是 v1.0.0，它会自动处理
+          releaseName: 'OSC-Bridge v__VERSION__' # __VERSION__ 会被替换为应用版本
+          releaseBody: '请从下面的 Assets 中下载对应平台的安装包。'
+          releaseDraft: false
+          prerelease: false 

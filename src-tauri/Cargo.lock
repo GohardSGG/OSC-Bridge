@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "OSC-Bridge"
-version = "0.9.5"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "auto-launch",
