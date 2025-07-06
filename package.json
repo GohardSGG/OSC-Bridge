@@ -1,7 +1,7 @@
 {
   "name": "OSC-Bridge",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "postversion": "git add src-tauri/tauri.conf.json src-tauri/Cargo.toml",
