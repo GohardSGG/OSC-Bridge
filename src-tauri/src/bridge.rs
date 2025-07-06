@@ -58,15 +58,11 @@ enum FrontendLog {
     ClientDisconnected { client_id: String, client_type: String },
 }
 
-/// 定义客户端的类型，用于区分前端UI和外部OSC客户端
+/// 定义客户端的类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClientType {
-    /// 前端UI客户端，只接收日志，不转发OSC消息
     Frontend,
-    /// 外部OSC客户端 (如 Loupedeck)，需要双向收发OSC消息
     OscClient,
-    /// 未知类型，默认不进行任何特殊处理
-    Unknown,
 }
 
 /// 桥接服务的共享状态
@@ -141,14 +137,14 @@ async fn start_ws_server(state: Arc<BridgeState>) {
         .allow_methods(Any)
         .allow_headers(Any);
     
-    // 克隆 state 以便在路由中使用
+    // 关键修复：定义两个独立的路由，并正确地调用 ws_handler
     let app = Router::new()
-        .route("/", get(ws_handler))
-        .route("/ws", get(ws_handler))
+        .route("/", get(|ws, state, headers| ws_handler(ws, state, headers, ClientType::OscClient)))
+        .route("/logs", get(|ws, state, headers| ws_handler(ws, state, headers, ClientType::Frontend)))
         .route("/config", get(get_config_handler))
         .route("/save-config", post(save_config_handler))
         .route("/reload-config", post(reload_config_handler))
-        .with_state(state.clone()) // 使用克隆的 state
+        .with_state(state.clone())
         .layer(cors);
 
     let config = match state.app_handle.state::<AppState>().bridge_config.lock() {
@@ -169,8 +165,8 @@ async fn start_ws_server(state: Arc<BridgeState>) {
         }
     };
 
-    // 关键修复: 绑定到 [::]，即所有IPv6和IPv4地址
-    let listen_addr = format!("[::]:{}", port);
+    // 关键修复: 强制绑定到 '0.0.0.0'，以监听所有网络接口，就像旧版一样
+    let listen_addr = format!("0.0.0.0:{}", port);
     info!("HTTP & WebSocket Server attempting to listen on: {}", listen_addr);
 
     let listener = match tokio::net::TcpListener::bind(&listen_addr).await {
@@ -294,20 +290,9 @@ async fn start_udp_services(state: Arc<BridgeState>, config: BridgeConfig, token
 async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<BridgeState>>,
-    headers: HeaderMap,
+    _headers: HeaderMap,
+    client_type: ClientType,
 ) -> impl IntoResponse {
-    let user_agent = headers
-        .get("user-agent")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_lowercase();
-    let client_type = if user_agent.contains("tauri") || user_agent.contains("chrome") {
-        ClientType::Frontend
-    } else if user_agent.is_empty() || user_agent.contains("websocket") {
-        ClientType::OscClient
-    } else {
-        ClientType::Unknown
-    };
     info!(client_type = ?client_type, "WebSocket client trying to connect");
     ws.on_upgrade(move |socket| handle_socket(socket, state, client_type))
 }
@@ -320,11 +305,10 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<BridgeState>, client_ty
 
     info!(client_id = %client_id_str, client_type = %client_type_str, "New client connected");
     
-    // 发送客户端连接事件
     let connect_event = FrontendLog::ClientConnected {
         client_id: client_id_str.clone(),
         client_type: client_type_str.clone(),
-        remote_addr: "".to_string(), // Axum暂时不易获取，可留空或后续实现
+        remote_addr: "".to_string(),
     };
     if let Ok(json) = serde_json::to_string(&connect_event) {
         let _ = state.log_tx.send(json);
@@ -335,65 +319,58 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<BridgeState>, client_ty
 
     loop {
         tokio::select! {
-            // 1. 从WebSocket接收消息
+            // 接收来自此WebSocket客户端的消息 (可以是任何类型)
             received = socket.recv() => {
                 if let Some(Ok(Message::Binary(data))) = received {
-                    if client_type == ClientType::OscClient || client_type == ClientType::Frontend {
-                        let targets = state.app_handle.state::<AppState>().bridge_config.lock().unwrap().target_ports.clone();
-                        let total_targets = targets.len();
-
-                        if state.udp_tx.send(data.clone()).is_err() {
-                            warn!("WS: No UDP senders to forward to.");
-                        }
-                        
-                        // 当外部客户端发送OSC消息时，也记录一个结构化日志
-                        if let Ok((_size, packet)) = rosc::decoder::decode_udp(&data) {
-                            if let rosc::OscPacket::Message(msg) = packet {
-                                let event = FrontendLog::OscSent(OscPacketInfo {
-                                    source_id: client_id_str.clone(),
-                                    destination_type: "Target".to_string(),
-                                    sent_count: total_targets, // 假定全部成功
-                                    total_count: total_targets,
-                                    addr: msg.addr,
-                                    args: msg.args.iter().map(|arg| OscArg {
-                                        value: format_osc_arg(arg, false),
-                                        type_name: format_osc_arg(arg, true),
-                                    }).collect(),
-                                });
-                                if let Ok(json_string) = serde_json::to_string(&event) {
-                                    let _ = state.log_tx.send(json_string);
-                                }
+                    // 1. 无论来源，都先尝试转发到UDP
+                    if state.udp_tx.send(data.clone()).is_err() {
+                        warn!("WS: No UDP senders to forward to.");
+                    }
+                    
+                    // 2. 关键修复：为所有发送的二进制消息都生成日志
+                    if let Ok((_size, packet)) = rosc::decoder::decode_udp(&data) {
+                        if let rosc::OscPacket::Message(msg) = packet {
+                            let event = FrontendLog::OscSent(OscPacketInfo {
+                                source_id: client_id_str.clone(),
+                                destination_type: "Target".to_string(),
+                                sent_count: 1, // Placeholder
+                                total_count: 1, // Placeholder
+                                addr: msg.addr,
+                                args: msg.args.iter().map(|arg| OscArg {
+                                    value: format_osc_arg(arg, false),
+                                    type_name: format_osc_arg(arg, true),
+                                }).collect(),
+                            });
+                            if let Ok(json_string) = serde_json::to_string(&event) {
+                                // 将日志发送到日志通道
+                                let _ = state.log_tx.send(json_string);
                             }
                         }
                     }
-                } else if let Some(Ok(Message::Close(_))) = received {
-                    info!(client_id = %client_id_str, client_type = %client_type_str, "Client sent close frame");
+                } else if received.is_none() || matches!(received, Some(Ok(Message::Close(_)))) {
                     break;
                 }
-                else if received.is_none() {
-                    // received is None, a sign of disconnection
-                    info!(client_id = %client_id_str, client_type = %client_type_str, "Connection closed by client");
-                    break;
-                }
-                // Other message types like Text, Ping, Pong are ignored
             },
-            // 2. 从UDP转发OSC消息给OscClient
+
+            // 将原始OSC二进制数据只转发给OscClient
             Ok(data) = osc_rx.recv(), if client_type == ClientType::OscClient => {
                 if socket.send(Message::Binary(data)).await.is_err() {
-                    warn!("WS: Failed to forward OSC to {:?} client", client_type);
+                    warn!("WS: Failed to forward OSC to OscClient");
                     break;
                 }
             },
-            // 3. 转发日志给Frontend客户端
+
+            // 将结构化的日志JSON只转发给Frontend客户端
             Ok(log_msg) = log_rx.recv(), if client_type == ClientType::Frontend => {
                 if socket.send(Message::Text(log_msg)).await.is_err() {
-                     warn!("WS: Failed to forward log to frontend client");
+                     warn!("WS: Failed to forward log to Frontend client {}", client_id_str);
                     break;
                 }
             },
         }
     }
-    info!(client_id = %client_id_str, client_type = %client_type_str, "Client disconnected");
+    
+    info!(client_id = %client_id_str, "Client disconnected");
     
     let disconnect_event = FrontendLog::ClientDisconnected {
         client_id: client_id_str,

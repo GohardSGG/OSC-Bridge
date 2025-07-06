@@ -251,10 +251,10 @@ function connectWebSocket() {
   addSystemLog({
     timestamp: getCurrentTimestamp(),
     type: 'info',
-    message: '🔄 正在连接到 OSC Bridge 服务 (ws://localhost:9122)...'
+    message: '🔄 正在连接到 OSC Bridge 日志服务 (ws://localhost:9122/logs)...'
   });
 
-  websocket = new WebSocket('ws://localhost:9122');
+  websocket = new WebSocket('ws://localhost:9122/logs');
   websocket.binaryType = 'arraybuffer';
 
   websocket.onopen = () => {
