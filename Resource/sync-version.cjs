@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // 从 package.json 获取权威的新版本号
-const { version: newVersion } = require('./package.json');
+const { version: newVersion } = require('../package.json');
 
 if (!newVersion) {
   console.error('错误：无法从 package.json 中读取版本号。');

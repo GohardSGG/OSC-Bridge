@@ -10,9 +10,13 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [svelte({ configFile: './svelte.config.js' })],
 
+  build: {
+    outDir: '../Build',
+  },
+
   resolve: {
     alias: {
-      '$lib': path.resolve(__dirname, 'src/lib'),
+      '$lib': path.resolve(__dirname, 'Source/Svelte/lib'),
     }
   },
 
@@ -34,7 +38,7 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: ["**/Source/Tauri/**"],
     },
   },
 }));

@@ -4,10 +4,10 @@
   "version": "1.0.1",
   "identifier": "com.osc-bridge.app",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm run vite-dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "frontendDist": "../../Build"
   },
   "app": {
     "withGlobalTauri": true,
@@ -39,6 +39,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      "../../Resource/config.json"
     ]
   }
 }

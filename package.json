@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "postversion": "git push && git push --tags",
-    "version": "node sync-version.cjs && git add src-tauri/tauri.conf.json src-tauri/Cargo.toml",
-    "dev": "vite",
+    "version": "node Resource/sync-version.cjs && git add Source/Tauri/tauri.conf.json Source/Tauri/Cargo.toml",
+    "dev": "tauri dev",
+    "vite-dev": "vite",
     "dev-standalone": "concurrently -k \"vite\" \"node osc-bridge.cjs\"",
     "build": "tsc && vite build",
     "preview": "vite preview",

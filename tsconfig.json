@@ -22,9 +22,9 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "$lib": ["src/lib"],
-      "$lib/*": ["src/lib/*"]
+      "$lib": ["Source/Svelte/lib"],
+      "$lib/*": ["Source/Svelte/lib/*"]
     }
   },
-  "include": ["src"]
+  "include": ["Source/Svelte"]
 }
