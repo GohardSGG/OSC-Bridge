@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { isDarkMode } from '$lib/stores/stores';
   import { hideWindow } from '$lib/bridge';
+  import { invoke } from '@tauri-apps/api/core';
   import Server from '$lib/icons/Server.svelte';
   import Radio from '$lib/icons/Radio.svelte';
   import Sun from '$lib/icons/Sun.svelte';
@@ -8,6 +10,21 @@
   import Settings from '$lib/icons/Settings.svelte';
   import X from '$lib/icons/X.svelte';
   import { isSettingsOpen } from '$lib/stores/stores';
+
+  let listenPorts = "Loading...";
+  let targetPorts = "Loading...";
+
+  onMount(async () => {
+    try {
+      const ports: { listen: string, target: string } = await invoke('get_formatted_ports');
+      listenPorts = ports.listen || "Not configured";
+      targetPorts = ports.target || "Not configured";
+    } catch (e) {
+      console.error("Failed to get formatted ports:", e);
+      listenPorts = "Error";
+      targetPorts = "Error";
+    }
+  });
 
   const toggleTheme = () => isDarkMode.update(n => !n);
 </script>
@@ -21,12 +38,12 @@
     <span class="opacity-30">|</span>
     <div class="flex items-center gap-1.5" data-tauri-drag-region>
       <Server size={10} />
-      <span>0.0.0.0:7879</span>
+      <span>{listenPorts}</span>
     </div>
     <span class="opacity-30">|</span>
     <div class="flex items-center gap-1.5" data-tauri-drag-region>
       <Radio size={10} />
-      <span>127.0.0.1:7878</span>
+      <span>{targetPorts}</span>
     </div>
   </div>
   <div class="flex items-center gap-3">

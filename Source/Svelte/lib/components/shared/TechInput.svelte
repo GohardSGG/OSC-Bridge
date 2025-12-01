@@ -10,7 +10,7 @@
 
 <div class={`flex flex-col gap-1 w-full ${className}`}>
   {#if label}
-    <label {id} class="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 {isDark ? 'text-slate-400' : 'text-slate-500'}">
+    <label for={id} class="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 {isDark ? 'text-slate-400' : 'text-slate-500'}">
       {label}
     </label>
   {/if}

@@ -3,6 +3,7 @@ use tauri::{AppHandle, Manager, State};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use auto_launch::AutoLaunch;
+use std::collections::HashMap;
 
 mod bridge; // 声明新的 bridge 模块
 
@@ -61,6 +62,44 @@ fn get_bridge_config(state: State<AppState>) -> Result<BridgeConfig, String> {
 fn get_config(state: State<AppState>) -> Result<AppConfig, String> {
     let config = state.app_config.lock().map_err(|e| e.to_string())?;
     Ok(config.clone())
+}
+
+// 新增命令，用于前端获取格式化后的端口字符串
+#[tauri::command]
+fn get_formatted_ports(state: State<AppState>) -> Result<FormattedPorts, String> {
+    let config = state.bridge_config.lock().map_err(|e| e.to_string())?;
+    Ok(FormattedPorts {
+        listen: format_ports(&config.listen_ports),
+        target: format_ports(&config.target_ports),
+    })
+}
+
+// 辅助函数：按IP对端口进行分组和格式化
+fn format_ports(ports: &[String]) -> String {
+    let mut ip_map: HashMap<String, Vec<u16>> = HashMap::new();
+
+    for addr in ports {
+        if let Ok(socket_addr) = addr.parse::<std::net::SocketAddr>() {
+            let ip = socket_addr.ip().to_string();
+            let port = socket_addr.port();
+            ip_map.entry(ip).or_default().push(port);
+        } else if let Ok(url) = url::Url::parse(addr) {
+            if let Some(host) = url.host_str() {
+                if let Some(port) = url.port() {
+                    ip_map.entry(host.to_string()).or_default().push(port);
+                }
+            }
+        }
+    }
+
+    let mut parts: Vec<String> = ip_map.into_iter().map(|(ip, mut port_nums)| {
+        port_nums.sort_unstable();
+        let port_str = port_nums.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",");
+        format!("{}:{}", ip, port_str)
+    }).collect();
+    
+    parts.sort();
+    parts.join(" | ")
 }
 
 // 设置自启动
@@ -185,7 +224,7 @@ fn load_app_config(app: &AppHandle) -> AppConfig {
 
 // 加载OSC桥接服务配置 (新函数)
 fn load_bridge_config() -> BridgeConfig {
-    // 逻辑与 osc-bridge.cjs 保持一致: 从程序运行目录读取 config.json
+    // 统一逻辑: 无论是 debug 还是 release, 都从程序运行目录读取 config.json
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             let config_path = exe_dir.join("config.json");
@@ -201,7 +240,8 @@ fn load_bridge_config() -> BridgeConfig {
                     });
                 }
             } else {
-                // 如果配置文件不存在，则创建并写入默认配置
+                // 如果配置文件不存在 (这种情况理论上不应发生，因为 build.rs 会复制)
+                // 但作为保障，我们依然创建并写入默认配置
                 println!("未找到 config.json，将创建默认配置文件。");
                 let default_config = BridgeConfig::default();
                 if let Ok(config_json) = serde_json::to_string_pretty(&default_config) {
@@ -265,6 +305,12 @@ fn update_tray_menu(app: &AppHandle) {
             }
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct FormattedPorts {
+    listen: String,
+    target: String,
 }
 
 #[derive(Default)]
@@ -467,6 +513,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_bridge_config,
+            get_formatted_ports, // <--- 在这里注册新命令
             get_config,
             set_auto_start,
             set_silent_start,
