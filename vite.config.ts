@@ -1,10 +1,20 @@
 import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import svelteConfig from "./svelte.config.js";
+import path from "path";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
+  plugins: [svelte({ configFile: './svelte.config.js' })],
+
+  resolve: {
+    alias: {
+      '$lib': path.resolve(__dirname, 'src/lib'),
+    }
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

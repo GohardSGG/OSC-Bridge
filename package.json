@@ -4,8 +4,8 @@
   "version": "1.0.1",
   "type": "module",
   "scripts": {
-    "postversion": "git add src-tauri/tauri.conf.json src-tauri/Cargo.toml",
-    "version": "node sync-version.cjs",
+    "postversion": "git push && git push --tags",
+    "version": "node sync-version.cjs && git add src-tauri/tauri.conf.json src-tauri/Cargo.toml",
     "dev": "vite",
     "dev-standalone": "concurrently -k \"vite\" \"node osc-bridge.cjs\"",
     "build": "tsc && vite build",
@@ -13,18 +13,25 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/api": "^2.0.0-beta.1",
+    "@tauri-apps/plugin-opener": "^2.0.0-beta.1",
     "express": "^5.1.0",
     "osc-js": "^2.4.1",
     "puppeteer": "^24.11.2",
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "@tailwindcss/postcss": "^4.0.0-alpha.18",
+    "@tauri-apps/cli": "2.0.0-beta.20",
+    "autoprefixer": "^10.4.19",
     "concurrently": "^9.2.0",
     "pkg": "^5.8.1",
+    "postcss": "^8.4.38",
+    "svelte": "^4.2.12",
+    "svelte-preprocess": "^6.0.3",
+    "tailwindcss": "^3.4.3",
     "typescript": "~5.6.2",
-    "vite": "^6.0.3"
+    "vite": "^5.2.0"
   }
 }

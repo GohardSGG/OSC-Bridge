@@ -323,28 +323,28 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<BridgeState>, client_ty
             received = socket.recv() => {
                 if let Some(Ok(Message::Binary(data))) = received {
                     // 1. 无论来源，都先尝试转发到UDP
-                    if state.udp_tx.send(data.clone()).is_err() {
-                        warn!("WS: No UDP senders to forward to.");
-                    }
-                    
+                        if state.udp_tx.send(data.clone()).is_err() {
+                            warn!("WS: No UDP senders to forward to.");
+                        }
+                        
                     // 2. 关键修复：为所有发送的二进制消息都生成日志
-                    if let Ok((_size, packet)) = rosc::decoder::decode_udp(&data) {
-                        if let rosc::OscPacket::Message(msg) = packet {
-                            let event = FrontendLog::OscSent(OscPacketInfo {
-                                source_id: client_id_str.clone(),
-                                destination_type: "Target".to_string(),
+                        if let Ok((_size, packet)) = rosc::decoder::decode_udp(&data) {
+                            if let rosc::OscPacket::Message(msg) = packet {
+                                let event = FrontendLog::OscSent(OscPacketInfo {
+                                    source_id: client_id_str.clone(),
+                                    destination_type: "Target".to_string(),
                                 sent_count: 1, // Placeholder
                                 total_count: 1, // Placeholder
-                                addr: msg.addr,
-                                args: msg.args.iter().map(|arg| OscArg {
-                                    value: format_osc_arg(arg, false),
-                                    type_name: format_osc_arg(arg, true),
-                                }).collect(),
-                            });
-                            if let Ok(json_string) = serde_json::to_string(&event) {
+                                    addr: msg.addr,
+                                    args: msg.args.iter().map(|arg| OscArg {
+                                        value: format_osc_arg(arg, false),
+                                        type_name: format_osc_arg(arg, true),
+                                    }).collect(),
+                                });
+                                if let Ok(json_string) = serde_json::to_string(&event) {
                                 // 将日志发送到日志通道
-                                let _ = state.log_tx.send(json_string);
-                            }
+                                    let _ = state.log_tx.send(json_string);
+                                }
                         }
                     }
                 } else if received.is_none() || matches!(received, Some(Ok(Message::Close(_)))) {
