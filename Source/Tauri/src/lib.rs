@@ -107,7 +107,7 @@ async fn save_bridge_config(config: BridgeConfig, app_handle: AppHandle, state: 
     #[cfg(not(windows))]
     {
         // On macOS & Linux, save to user's config directory
-        let config_dir = app_handle.path().app_config_dir().ok_or("Could not get app config dir")?;
+        let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
         if !config_dir.exists() {
             std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
         }
@@ -282,17 +282,17 @@ fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
     #[cfg(windows)]
     {
         // On Windows, only load from beside the executable
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let config_path = exe_dir.join("config.json");
-            if config_path.exists() {
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let config_path = exe_dir.join("config.json");
+                if config_path.exists() {
                     println!("Windows: Loading config from executable directory: {:?}", config_path);
-                if let Ok(content) = std::fs::read_to_string(&config_path) {
-                    return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
-                        eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
-                        BridgeConfig::default()
-                    });
-                }
+                    if let Ok(content) = std::fs::read_to_string(&config_path) {
+                        return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
+                            eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
+                            BridgeConfig::default()
+                        });
+                    }
                 }
             }
         }
@@ -301,7 +301,7 @@ fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
     {
         // On macOS & Linux, prioritize user config dir, then fallback to resources
         // 1. Try user config directory
-        if let Some(config_dir) = app_handle.path().app_config_dir() {
+        if let Ok(config_dir) = app_handle.path().app_config_dir() {
             let user_config_path = config_dir.join("config.json");
             if user_config_path.exists() {
                 println!("Non-Windows: Loading config from user directory: {:?}", user_config_path);
@@ -313,16 +313,16 @@ fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
             }
         }
         // 2. Fallback to bundled resource config
-        if let Some(resource_dir) = app_handle.path().resource_dir() {
+        if let Ok(resource_dir) = app_handle.path().resource_dir() {
             let default_config_path = resource_dir.join("config_default.json");
              if default_config_path.exists() {
                 println!("Non-Windows: Loading config from resource directory: {:?}", default_config_path);
                 if let Ok(content) = std::fs::read_to_string(&default_config_path) {
                     if let Ok(config) = serde_json::from_str::<BridgeConfig>(&content) {
                         return config;
-            }
-        }
-    }
+                    }
+                }
+             }
         }
     }
 
