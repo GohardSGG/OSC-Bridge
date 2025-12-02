@@ -45,7 +45,7 @@
 
 {#if $isSettingsOpen}
 <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
-  <div class="w-[480px] border-2 shadow-[16px_16px_0px_rgba(0,0,0,0.3)] flex flex-col animate-in fade-in zoom-in-95 duration-100 {modalBg}">
+  <div class="w-[380px] border-2 shadow-[16px_16px_0px_rgba(0,0,0,0.3)] flex flex-col animate-in fade-in zoom-in-95 duration-100 {modalBg}">
     
     <!-- Modal Header -->
     <div class="h-10 flex items-center justify-between px-4 select-none {headerBg}">
@@ -61,7 +61,7 @@
     </div>
 
     <!-- Modal Content -->
-    <div class="p-6 space-y-6 overflow-y-auto max-h-[600px] {contentBg}">
+    <div class="p-5 space-y-4 overflow-y-auto max-h-[85vh] {contentBg}">
       
       <!-- Section: Connection -->
       <div>

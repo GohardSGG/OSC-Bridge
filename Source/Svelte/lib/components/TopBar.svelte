@@ -35,17 +35,30 @@
       <div class="w-1.5 h-1.5 bg-emerald-500 animate-pulse"></div>
       <span class="font-bold tracking-wider">ONLINE</span>
     </div>
+    
+    <!-- Listen Ports -->
     <span class="opacity-30">|</span>
-    <div class="flex items-center gap-1.5" data-tauri-drag-region>
-      <Server size={10} />
-      <span>{listenPorts}</span>
+    <div class="relative group flex items-center gap-1.5 min-w-0" data-tauri-drag-region>
+      <Server size={10} class="shrink-0" />
+      <span class="truncate max-w-[200px] cursor-help">{listenPorts}</span>
+      <div class="absolute top-full left-0 mt-2 hidden group-hover:block z-50 w-max max-w-[300px] p-2 rounded border shadow-xl text-xs whitespace-pre-wrap leading-relaxed {$isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}">
+        <div class="font-bold mb-1 opacity-50">Listening Ports:</div>
+        {listenPorts.split('|').join('\n')}
+      </div>
     </div>
+
+    <!-- Target Ports -->
     <span class="opacity-30">|</span>
-    <div class="flex items-center gap-1.5" data-tauri-drag-region>
-      <Radio size={10} />
-      <span>{targetPorts}</span>
+    <div class="relative group flex items-center gap-1.5 min-w-0" data-tauri-drag-region>
+      <Radio size={10} class="shrink-0" />
+      <span class="truncate max-w-[200px] cursor-help">{targetPorts}</span>
+      <div class="absolute top-full left-0 mt-2 hidden group-hover:block z-50 w-max max-w-[300px] p-2 rounded border shadow-xl text-xs whitespace-pre-wrap leading-relaxed {$isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}">
+        <div class="font-bold mb-1 opacity-50">Forwarding Targets:</div>
+        {targetPorts.split('|').join('\n')}
+      </div>
     </div>
   </div>
+
   <div class="flex items-center gap-3">
     <button 
       on:click={toggleTheme} 

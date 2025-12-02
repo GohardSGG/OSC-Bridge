@@ -21,19 +21,52 @@
     import LogLine from './shared/LogLine.svelte';
 
     // DOM Elements
+    let containerElement: HTMLDivElement;
     let txLogContainer: HTMLDivElement;
     let rxLogContainer: HTMLDivElement;
     let txAnchor: HTMLDivElement;
     let rxAnchor: HTMLDivElement;
 
-    // State tracks if the user is currently viewing the bottom of the list
+    // Resizer Logic
+    let isResizing = false;
+    let txPanelHeightPercent = 50; // Initial height percentage
+
+    function startResize(e: MouseEvent) {
+        isResizing = true;
+        window.addEventListener('mousemove', handleResize);
+        window.addEventListener('mouseup', stopResize);
+        // Prevent text selection during resize
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'row-resize';
+    }
+
+    function handleResize(e: MouseEvent) {
+        if (!isResizing || !containerElement) return;
+        
+        const containerRect = containerElement.getBoundingClientRect();
+        const relativeY = e.clientY - containerRect.top;
+        const newPercent = (relativeY / containerRect.height) * 100;
+
+        // Constraint the height between 10% and 90%
+        if (newPercent >= 10 && newPercent <= 90) {
+            txPanelHeightPercent = newPercent;
+        }
+    }
+
+    function stopResize() {
+        isResizing = false;
+        window.removeEventListener('mousemove', handleResize);
+        window.removeEventListener('mouseup', stopResize);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+    }
+
+    // Scroll Observer Logic
     let txIsAtBottom = true;
     let rxIsAtBottom = true;
-    
     let observer: IntersectionObserver;
 
     onMount(() => {
-        // Create an observer to watch the "anchors" at the bottom of the logs
         observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.target === txAnchor) {
@@ -44,17 +77,21 @@
                 }
             });
         }, {
-            root: null, // viewport (or scrollable ancestor)
-            threshold: 0.1 // Trigger when even a tiny bit is visible
+            root: null,
+            threshold: 0.1
         });
 
-        // Start observing once elements are bound
         if (txAnchor) observer.observe(txAnchor);
         if (rxAnchor) observer.observe(rxAnchor);
     });
 
     onDestroy(() => {
         if (observer) observer.disconnect();
+        // Clean up resize listeners just in case component is destroyed while dragging
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('mousemove', handleResize);
+            window.removeEventListener('mouseup', stopResize);
+        }
     });
 
     // Reactive Logic for TX Scrolling
@@ -68,15 +105,13 @@
     }
 
     async function scrollToBottom(container: HTMLDivElement) {
-        await tick(); // Wait for DOM update to render new log
+        await tick();
         container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
     }
 
     async function toggleAutoScroll() {
         const wasEnabled = $isAutoScroll;
         isAutoScroll.update(n => !n);
-        
-        // If enabling, force scroll to bottom immediately
         if (!wasEnabled) {
             await tick();
             if (txLogContainer) txLogContainer.scrollTop = txLogContainer.scrollHeight;
@@ -129,36 +164,39 @@
         </div>
     </div>
 
-    <!-- Split View: Using Flex-Basis-0 Strategy for strict equality -->
-    <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <!-- TX Panel -->
-        <div class="flex-1 basis-0 min-h-0 flex flex-col {$isDarkMode ? 'bg-[#111113]' : 'bg-white'}">
+    <!-- Split View Container -->
+    <div bind:this={containerElement} class="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        
+        <!-- TX Panel (Height controlled by variable) -->
+        <div style="height: {txPanelHeightPercent}%" class="flex flex-col min-h-0 overflow-hidden {$isDarkMode ? 'bg-[#111113]' : 'bg-white'}">
             <SectionHeader label="Outgoing (TX)" icon={ArrowUpRight} count={$filteredSentLogs.length} isDark={$isDarkMode} />
             
-            <div bind:this={txLogContainer} class="flex-1 overflow-y-auto scrollbar-thin p-0 {$isDarkMode ? 'scrollbar-thumb-slate-700 scrollbar-track-black' : 'scrollbar-thumb-slate-300 scrollbar-track-slate-50'}">
+            <div bind:this={txLogContainer} class="flex-1 overflow-y-auto p-0">
                 <div class="px-3 py-1 pb-2">
                     {#each $filteredSentLogs.filter(log => log && log.id != null) as log (log.id)}
                         <LogLine {log} direction="TX" isDark={$isDarkMode} />
                     {/each}
-                    <!-- Anchor element for intersection observer -->
                     <div bind:this={txAnchor} class="h-px w-full shrink-0"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Divider -->
-        <div class="h-1 border-y shrink-0 z-10 cursor-row-resize {$isDarkMode ? 'bg-black border-slate-800 hover:bg-slate-800' : 'bg-slate-200 border-slate-300 hover:bg-slate-300'}"></div>
+        <!-- Draggable Divider -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div 
+            on:mousedown={startResize}
+            class="h-1 border-y shrink-0 z-20 cursor-row-resize transition-colors {isResizing ? 'bg-emerald-500 border-emerald-600' : ($isDarkMode ? 'bg-black border-slate-800 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 hover:bg-slate-300')}"
+        ></div>
 
-        <!-- RX Panel -->
-        <div class="flex-1 basis-0 min-h-0 flex flex-col {$isDarkMode ? 'bg-[#09090b]' : 'bg-[#fafafa]'}">
+        <!-- RX Panel (Takes remaining space) -->
+        <div class="flex-1 flex flex-col min-h-0 overflow-hidden {$isDarkMode ? 'bg-[#09090b]' : 'bg-[#fafafa]'}">
             <SectionHeader label="Incoming (RX)" icon={ArrowDownLeft} count={$filteredRecvLogs.length} isDark={$isDarkMode} />
             
-            <div bind:this={rxLogContainer} class="flex-1 overflow-y-auto scrollbar-thin p-0 {$isDarkMode ? 'scrollbar-thumb-slate-700 scrollbar-track-black' : 'scrollbar-thumb-slate-100'}">
+            <div bind:this={rxLogContainer} class="flex-1 overflow-y-auto p-0">
                 <div class="px-3 py-1 pb-2">
                     {#each $filteredRecvLogs.filter(log => log && log.id != null) as log (log.id)}
                         <LogLine {log} direction="RX" isDark={$isDarkMode} />
                     {/each}
-                    <!-- Anchor element for intersection observer -->
                     <div bind:this={rxAnchor} class="h-px w-full shrink-0"></div>
                 </div>
             </div>

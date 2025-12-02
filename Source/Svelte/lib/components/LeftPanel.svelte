@@ -4,7 +4,7 @@
   import SystemLog from './SystemLog.svelte';
 </script>
 
-<div class="w-64 border-r-2 flex flex-col shrink-0 {$isDarkMode ? 'bg-[#18181b] border-slate-800' : 'bg-slate-50 border-slate-300'}">
+<div class="hidden md:flex w-64 border-r-2 flex-col shrink-0 {$isDarkMode ? 'bg-[#18181b] border-slate-800' : 'bg-slate-50 border-slate-300'}">
   <Injector />
   <SystemLog />
 </div>

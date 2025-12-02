@@ -94,7 +94,7 @@ fn format_ports(ports: &[String]) -> String {
 
     let mut parts: Vec<String> = ip_map.into_iter().map(|(ip, mut port_nums)| {
         port_nums.sort_unstable();
-        let port_str = port_nums.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",");
+        let port_str = port_nums.iter().map(|p| p.to_string()).collect::<Vec<_>>().join("/");
         format!("{}:{}", ip, port_str)
     }).collect();
     
