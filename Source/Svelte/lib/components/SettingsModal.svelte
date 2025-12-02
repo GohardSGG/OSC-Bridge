@@ -27,6 +27,11 @@
   $: addBtn = $isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-800 border-slate-900 text-white hover:bg-slate-700';
 
   // --- Event Handlers ---
+  const handleSaveAndClose = async () => {
+    await saveConfiguration();
+    isSettingsOpen.set(false);
+  };
+
   const removePort = (idx: number) => {
     settingsListenPorts.update(ports => ports.filter((_, i) => i !== idx));
   };
@@ -54,7 +59,7 @@
         <span class="text-xs font-bold uppercase tracking-widest">System Config</span>
       </div>
       <div class="flex items-center gap-3">
-        <button on:click={saveConfiguration} class="hover:text-emerald-400 transition-colors"><Check size={16} strokeWidth={3} /></button>
+        <button on:click={handleSaveAndClose} class="hover:text-emerald-400 transition-colors"><Check size={16} strokeWidth={3} /></button>
         <div class="w-px h-4 {$isDarkMode ? 'bg-slate-700' : 'bg-slate-600'}"></div>
         <button on:click={() => isSettingsOpen.set(false)} class="hover:text-rose-400 transition-colors"><X size={16} strokeWidth={3} /></button>
       </div>

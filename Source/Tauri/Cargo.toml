@@ -43,6 +43,7 @@ url = "2.5.2"
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
 tauri-plugin-http = "2.0.0-beta"
 tauri-plugin-opener = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
+reqwest = { version = "0.12", features = ["json"] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

@@ -74,6 +74,34 @@ fn get_formatted_ports(state: State<AppState>) -> Result<FormattedPorts, String>
     })
 }
 
+// 新增命令，用于前端保存OSC配置并触发重载
+#[tauri::command]
+async fn save_bridge_config(config: BridgeConfig, state: State<'_, AppState>) -> Result<(), String> {
+    // 1. 更新内存中的状态
+    *state.bridge_config.lock().unwrap() = config.clone();
+
+    // 2. 将新配置写入文件
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let config_path = exe_dir.join("config.json");
+            let config_json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+            std::fs::write(&config_path, config_json).map_err(|e| e.to_string())?;
+            println!("配置已成功保存到: {:?}", config_path);
+        }
+    }
+
+    // 3. 通知 bridge 服务重载 (通过 HTTP 请求, 这是与后台服务解耦的好方法)
+    // 注意: 这里的 ws_url 实际上是 http server 的地址
+    let http_url = config.ws.get(0).cloned().unwrap_or_else(|| "ws://localhost:9122".to_string()).replace("ws://", "http://");
+    let client = reqwest::Client::new();
+    if let Err(e) = client.post(format!("{}/reload-config", http_url)).send().await {
+         eprintln!("发送重载信号失败: {}", e);
+         return Err(format!("发送重载信号失败: {}", e));
+    }
+
+    Ok(())
+}
+
 // 辅助函数：按IP对端口进行分组和格式化
 fn format_ports(ports: &[String]) -> String {
     let mut ip_map: HashMap<String, Vec<u16>> = HashMap::new();
@@ -518,6 +546,7 @@ pub fn run() {
             set_auto_start,
             set_silent_start,
             save_config,
+            save_bridge_config,
             toggle_main_window
         ])
         .run(tauri::generate_context!())
