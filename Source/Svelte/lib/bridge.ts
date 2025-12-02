@@ -73,7 +73,7 @@ export function initializeBridge() {
 
 function handleBackendMessage(payload: any) {
   const { type, data } = payload;
-  
+
   switch (type) {
     case 'OscSent':
       oscSentLogs.update(logs => {

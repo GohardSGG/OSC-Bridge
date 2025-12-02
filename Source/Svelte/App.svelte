@@ -25,18 +25,18 @@
     INITIALIZING...
   </div>
 {:else}
-  <div class="h-screen w-screen font-sans flex items-center justify-center transition-colors duration-300 {bgMain} overflow-hidden">
-    
-    <SettingsModal />
+<div class="h-screen w-screen font-sans flex items-center justify-center transition-colors duration-300 {bgMain} overflow-hidden">
+  
+  <SettingsModal />
 
-    <div class="w-full h-full flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} {chassisBorder} {shadow}">
-      <TopBar />
+  <div class="w-full h-full flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} {chassisBorder} {shadow}">
+    <TopBar />
 
-      <div class="flex flex-1 overflow-hidden">
-        <LeftPanel />
-        <RightPanel />
-      </div>
+    <div class="flex flex-1 overflow-hidden">
+      <LeftPanel />
+      <RightPanel />
     </div>
-
   </div>
+
+</div>
 {/if}

@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run vite-dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run vite-build",
     "frontendDist": "../../Build"
   },
   "app": {
@@ -41,7 +41,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../../Resource/config.json"
+      "../../Resource/config_pure.json"
     ]
   }
 }

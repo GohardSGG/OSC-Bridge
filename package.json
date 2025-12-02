@@ -9,7 +9,9 @@
     "dev": "tauri dev",
     "vite-dev": "vite",
     "dev-standalone": "concurrently -k \"vite\" \"node osc-bridge.cjs\"",
-    "build": "tsc && vite build",
+    "build": "tauri build",
+    "vite-build": "tsc && vite build",
+    "postbuild": "node scripts/post-build.cjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -28,6 +30,7 @@
     "@tauri-apps/cli": "2.0.0-beta.20",
     "autoprefixer": "^10.4.19",
     "concurrently": "^9.2.0",
+    "fs-extra": "^11.3.2",
     "pkg": "^5.8.1",
     "postcss": "^8.4.38",
     "svelte": "^4.2.12",

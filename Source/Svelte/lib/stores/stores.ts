@@ -1,46 +1,26 @@
 import { writable, derived } from 'svelte/store';
 
+// --- Type Definitions ---
+export type SystemLogEntry = {
+  id: string;
+  time: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'connect';
+  key?: string; // Translation key
+  values?: object; // Values for interpolation
+  msg?: string; // Raw message (for non-i18n logs)
+};
+
 // --- UI State Stores ---
 export const isDarkMode = writable(false);
 export const isSettingsOpen = writable(false);
 export const isAutoScroll = writable(true);
 export const isAlwaysOnTop = writable(false);
 
-// --- Mock Data Stores ---
-// System Logs
-export const systemLogs = writable([
-  { time: "13:31:31", type: "info", msg: "Configuration loaded." },
-  { time: "13:31:31", type: "success", msg: "WebSocket :9122 OK." },
-  { time: "13:32:47", type: "connect", msg: "Client #2 Connected." },
-  { time: "13:32:50", type: "connect", msg: "Client #3 Connected." },
-  { time: "13:33:12", type: "info", msg: "OSC Bridge Active." },
-  { time: "13:35:00", type: "warning", msg: "High latency detected." },
-]);
+// --- Log Stores ---
+export const systemLogs = writable<SystemLogEntry[]>([]);
+export const oscSentLogs = writable<any[]>([]);
+export const oscRecvLogs = writable<any[]>([]);
 
-// OSC Sent Logs
-export const oscSentLogs = writable([
-  { time: "14:34:13", target: "WS #2", path: "/Monitor/Master/Dim", val: "1.0000", type: "Float" },
-  { time: "14:34:28", target: "WS #2", path: "/Monitor/Master/Dim", val: "0.0000", type: "Float" },
-  { time: "14:34:34", target: "WS #2", path: "/Monitor/Master/Dim", val: "1.0000", type: "Float" },
-  { time: "14:34:35", target: "WS #2", path: "/Monitor/Master/Dim", val: "0.0000", type: "Float" },
-  { time: "14:35:10", target: "WS #2", path: "/Monitor/Volume", val: "0.7500", type: "Float" },
-  { time: "14:35:12", target: "WS #2", path: "/Monitor/Volume", val: "0.7600", type: "Float" },
-  { time: "14:35:15", target: "WS #2", path: "/Monitor/Volume", val: "0.8000", type: "Float" },
-  { time: "14:36:00", target: "WS #3", path: "/Effect/Reverb/Size", val: "45", type: "Int" },
-  { time: "14:36:01", target: "WS #3", path: "/Effect/Reverb/Size", val: "46", type: "Int" },
-]);
-
-// OSC Received Logs
-export const oscRecvLogs = writable([
-  { time: "14:34:15", source: "192.168.1.10", path: "/Remote/Fader/1", val: "0.55", type: "Float" },
-  { time: "14:34:16", source: "192.168.1.10", path: "/Remote/Fader/1", val: "0.56", type: "Float" },
-  { time: "14:34:17", source: "192.168.1.10", path: "/Remote/Fader/1", val: "0.60", type: "Float" },
-  { time: "14:34:20", source: "iPad Control", path: "/Scene/Recall", val: "Scene_A", type: "String" },
-  { time: "14:34:22", source: "iPad Control", path: "/Transport/Play", val: "1", type: "Int" },
-  { time: "14:35:00", source: "Core Audio", path: "/Meter/L", val: "<Blob 256b>", type: "Blob" },
-  { time: "14:35:00", source: "Core Audio", path: "/Meter/R", val: "<Blob 256b>", type: "Blob" },
-  { time: "14:35:01", source: "Core Audio", path: "/Meter/L", val: "<Blob 256b>", type: "Blob" },
-]);
 
 // --- Search / Filter State ---
 export const sentSearchTerm = writable("");
