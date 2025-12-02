@@ -13,7 +13,7 @@ console.log(`[Version Sync] 开始同步版本号至 v${newVersion}...`);
 
 // --- 同步 tauri.conf.json ---
 try {
-  const tauriConfPath = path.join(__dirname, 'src-tauri', 'tauri.conf.json');
+  const tauriConfPath = path.resolve(__dirname, '..', 'Source', 'Tauri', 'tauri.conf.json');
   const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
   
   console.log(`  -> 正在更新 tauri.conf.json (旧: v${tauriConf.version}, 新: v${newVersion})`);
@@ -28,7 +28,7 @@ try {
 
 // --- 同步 Cargo.toml ---
 try {
-  const cargoTomlPath = path.join(__dirname, 'src-tauri', 'Cargo.toml');
+  const cargoTomlPath = path.resolve(__dirname, '..', 'Source', 'Tauri', 'Cargo.toml');
   let cargoToml = fs.readFileSync(cargoTomlPath, 'utf-8');
   
   const oldVersionMatch = cargoToml.match(/^(version\s*=\s*")[^"]+/m);

@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "postversion": "git push && git push --tags",
-    "version": "node Resource/sync-version.cjs && git add Source/Tauri/tauri.conf.json Source/Tauri/Cargo.toml",
+    "version": "node Scripts/sync-version.cjs && git add Source/Tauri/tauri.conf.json Source/Tauri/Cargo.toml",
     "dev": "tauri dev",
     "vite-dev": "vite",
     "dev-standalone": "concurrently -k \"vite\" \"node osc-bridge.cjs\"",
     "build": "tauri build",
     "vite-build": "tsc && vite build",
-    "postbuild": "node scripts/post-build.cjs",
+    "postbuild": "node Scripts/post-build.cjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

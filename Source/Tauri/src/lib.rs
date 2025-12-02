@@ -87,18 +87,34 @@ fn get_formatted_ports(state: State<AppState>) -> Result<FormattedPorts, String>
 
 // 新增命令，用于前端保存OSC配置并触发重载
 #[tauri::command]
-async fn save_bridge_config(config: BridgeConfig, state: State<'_, AppState>) -> Result<(), String> {
+async fn save_bridge_config(config: BridgeConfig, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // 1. 更新内存中的状态
     *state.bridge_config.lock().unwrap() = config.clone();
 
-    // 2. 将新配置写入文件 (回到 exe 旁边)
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let config_path = exe_dir.join("config.json");
-            let config_json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-            std::fs::write(&config_path, config_json).map_err(|e| e.to_string())?;
-            println!("配置已成功保存到: {:?}", config_path);
+    // --- Platform-Specific Save Logic ---
+    #[cfg(windows)]
+    {
+        // On Windows, save next to the executable (requires admin rights)
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let config_path = exe_dir.join("config.json");
+                let config_json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+                std::fs::write(&config_path, config_json).map_err(|e| e.to_string())?;
+                println!("Windows: Config saved to executable directory: {:?}", config_path);
+            }
         }
+    }
+    #[cfg(not(windows))]
+    {
+        // On macOS & Linux, save to user's config directory
+        let config_dir = app_handle.path().app_config_dir().ok_or("Could not get app config dir")?;
+        if !config_dir.exists() {
+            std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+        }
+        let config_path = config_dir.join("config.json");
+        let config_json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+        std::fs::write(&config_path, config_json).map_err(|e| e.to_string())?;
+        println!("Non-Windows: Config saved to user config directory: {:?}", config_path);
     }
 
     // 3. 通知 bridge 服务重载
@@ -261,37 +277,56 @@ fn load_app_config(app: &AppHandle) -> AppConfig {
 }
 
 // 加载OSC桥接服务配置 (新函数)
-fn load_bridge_config() -> BridgeConfig {
-    // 统一逻辑: 无论是 debug 还是 release, 都从程序运行目录读取 config.json
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let config_path = exe_dir.join("config.json");
-            println!("正在从以下路径加载OSC配置: {:?}", config_path);
-
-            // 如果配置文件存在，则尝试读取和解析
-            if config_path.exists() {
-                if let Ok(content) = std::fs::read_to_string(&config_path) {
-                    // 如果解析成功，则返回解析后的配置，否则返回默认配置
-                    return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
-                        eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
-                        BridgeConfig::default()
-                    });
-                }
-            } else {
-                // 如果配置文件不存在 (这种情况理论上不应发生，因为 build.rs 会复制)
-                // 但作为保障，我们依然创建并写入默认配置
-                println!("未找到 config.json，将创建默认配置文件。");
-                let default_config = BridgeConfig::default();
-                if let Ok(config_json) = serde_json::to_string_pretty(&default_config) {
-                    if let Err(e) = std::fs::write(&config_path, config_json) {
-                        eprintln!("创建默认 config.json 失败: {}", e);
+fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
+    // --- Platform-Specific Load Logic ---
+    #[cfg(windows)]
+    {
+        // On Windows, only load from beside the executable
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let config_path = exe_dir.join("config.json");
+                if config_path.exists() {
+                    println!("Windows: Loading config from executable directory: {:?}", config_path);
+                    if let Ok(content) = std::fs::read_to_string(&config_path) {
+                        return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
+                            eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
+                            BridgeConfig::default()
+                        });
                     }
                 }
-                return default_config;
             }
         }
     }
-    println!("无法确定可执行文件路径，将使用默认OSC配置");
+    #[cfg(not(windows))]
+    {
+        // On macOS & Linux, prioritize user config dir, then fallback to resources
+        // 1. Try user config directory
+        if let Some(config_dir) = app_handle.path().app_config_dir() {
+            let user_config_path = config_dir.join("config.json");
+            if user_config_path.exists() {
+                println!("Non-Windows: Loading config from user directory: {:?}", user_config_path);
+                if let Ok(content) = std::fs::read_to_string(&user_config_path) {
+                    if let Ok(config) = serde_json::from_str::<BridgeConfig>(&content) {
+                        return config;
+                    }
+                }
+            }
+        }
+        // 2. Fallback to bundled resource config
+        if let Some(resource_dir) = app_handle.path().resource_dir() {
+            let default_config_path = resource_dir.join("config_default.json");
+             if default_config_path.exists() {
+                println!("Non-Windows: Loading config from resource directory: {:?}", default_config_path);
+                if let Ok(content) = std::fs::read_to_string(&default_config_path) {
+                    if let Ok(config) = serde_json::from_str::<BridgeConfig>(&content) {
+                        return config;
+                    }
+                }
+             }
+        }
+    }
+
+    println!("在任何位置都未找到 config.json，将创建并使用默认OSC配置");
     BridgeConfig::default()
 }
 
@@ -391,7 +426,7 @@ pub fn run() {
 
             // 1. 加载所有配置
             let app_config = load_app_config(&app.handle());
-            let bridge_config = load_bridge_config();
+            let bridge_config = load_bridge_config(&app.handle());
             println!("加载的OSC配置: {:?}", bridge_config);
 
             // 将 Tauri app handle 复制一份用于传递给后台任务
