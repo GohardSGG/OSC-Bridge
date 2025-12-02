@@ -1,8 +1,8 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import { onMount } from 'svelte';
-  import { isDarkMode } from '$lib/stores/stores';
-  import { hideWindow } from '$lib/bridge';
+  import { isDarkMode, isSettingsOpen, isAlwaysOnTop } from '$lib/stores/stores';
+  import { hideWindow, setAlwaysOnTop } from '$lib/bridge';
   import { invoke } from '@tauri-apps/api/core';
   import Server from '$lib/icons/Server.svelte';
   import Radio from '$lib/icons/Radio.svelte';
@@ -10,7 +10,7 @@
   import Moon from '$lib/icons/Moon.svelte';
   import Settings from '$lib/icons/Settings.svelte';
   import X from '$lib/icons/X.svelte';
-  import { isSettingsOpen } from '$lib/stores/stores';
+  import Pin from '$lib/icons/Pin.svelte';
 
   let listenPorts = "Loading...";
   let targetPorts = "Loading...";
@@ -28,6 +28,14 @@
   });
 
   const toggleTheme = () => isDarkMode.update(n => !n);
+
+  const toggleAlwaysOnTop = () => {
+    isAlwaysOnTop.update(enabled => {
+      const newState = !enabled;
+      setAlwaysOnTop(newState);
+      return newState;
+    });
+  };
 </script>
 
 <div data-tauri-drag-region class="h-8 flex items-center px-3 justify-between border-b-2 select-none shrink-0 {$isDarkMode ? 'bg-[#000000] border-slate-800' : 'bg-slate-800 border-slate-900'}">
@@ -61,6 +69,13 @@
   </div>
 
   <div class="flex items-center gap-3">
+    <button
+      on:click={toggleAlwaysOnTop}
+      class="transition-colors {$isAlwaysOnTop ? 'text-emerald-400 hover:text-emerald-300' : 'text-slate-400 hover:text-white'}"
+      title={$t('topbar.always_on_top')}
+    >
+      <Pin size={12} />
+    </button>
     <button 
       on:click={toggleTheme} 
       class="hover:text-amber-400 transition-colors {$isDarkMode ? 'text-slate-400' : 'text-slate-400'}"

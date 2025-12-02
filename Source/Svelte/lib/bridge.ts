@@ -76,10 +76,40 @@ function handleBackendMessage(payload: any) {
   
   switch (type) {
     case 'OscSent':
-      // This is handled in TrafficMonitor, not system log
+      oscSentLogs.update(logs => {
+          const newLog = {
+            id: getUniqueLogId(),
+            time: getCurrentTimestamp(),
+            path: data.addr,
+            val: data.args.map((a: any) => a.value).join(', '),
+            type: data.args.map((a: any) => a.type_name).join(', '),
+            target: data.source_id,
+            ...data
+          };
+          const newLogs = [...logs, newLog];
+          if (newLogs.length > 500) {
+              return newLogs.slice(newLogs.length - 500);
+          }
+          return newLogs;
+      });
       break;
     case 'OscReceived':
-      // This is handled in TrafficMonitor, not system log
+      oscRecvLogs.update(logs => {
+          const newLog = {
+            id: getUniqueLogId(),
+            time: getCurrentTimestamp(),
+            path: data.addr,
+            val: data.args.map((a: any) => a.value).join(', '),
+            type: data.args.map((a: any) => a.type_name).join(', '),
+            source: data.source_id,
+            ...data
+          };
+          const newLogs = [...logs, newLog];
+          if (newLogs.length > 500) {
+              return newLogs.slice(newLogs.length - 500);
+          }
+          return newLogs;
+      });
       break;
     case 'ClientConnected':
       addSystemLog('connect', 'logs.client_connected', { clientId: data.client_id, clientType: data.client_type, remoteAddr: data.remote_addr });
@@ -144,6 +174,10 @@ export function sendOsc(address: string, argsText: string) {
 
 export async function hideWindow() {
   await getCurrentWindow().hide();
+}
+
+export async function setAlwaysOnTop(enabled: boolean) {
+  await getCurrentWindow().setAlwaysOnTop(enabled);
 }
 
 export async function saveConfiguration() {

@@ -4,6 +4,7 @@ import { writable, derived } from 'svelte/store';
 export const isDarkMode = writable(false);
 export const isSettingsOpen = writable(false);
 export const isAutoScroll = writable(true);
+export const isAlwaysOnTop = writable(false);
 
 // --- Mock Data Stores ---
 // System Logs

@@ -4,11 +4,12 @@
         "listening_ports": "监听端口",
         "forwarding_targets": "转发目标",
         "toggle_theme": "切换主题",
+        "always_on_top": "置顶窗口",
         "settings": "设置",
         "close": "关闭"
     },
     "traffic_monitor": {
-        "title": "消息监视器",
+        "title": "消息n监视器",
         "filter_logs": "筛选日志...",
         "auto_scroll": "自动滚动",
         "outgoing": "传出 (TX)",

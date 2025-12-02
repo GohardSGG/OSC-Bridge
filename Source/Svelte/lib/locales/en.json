@@ -4,6 +4,7 @@
         "listening_ports": "Listening Ports",
         "forwarding_targets": "Forwarding Targets",
         "toggle_theme": "Toggle Night Vision",
+        "always_on_top": "Always on Top",
         "settings": "Settings",
         "close": "Close"
     },
