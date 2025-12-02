@@ -1,4 +1,6 @@
 <script lang="ts">
+  import '$lib/i18n'; // Import to initialize i18n
+  import { isLoading } from 'svelte-i18n';
   import { onMount } from 'svelte';
   import { isDarkMode } from '$lib/stores/stores';
   import { initializeBridge, loadInitialConfig } from '$lib/bridge';
@@ -18,17 +20,23 @@
   $: shadow = $isDarkMode ? 'shadow-[12px_12px_0px_rgba(0,0,0,0.5)]' : 'shadow-[12px_12px_0px_rgba(30,41,59,0.2)]';
 </script>
 
-<div class="h-screen w-screen font-sans flex items-center justify-center transition-colors duration-300 {bgMain} overflow-hidden">
-  
-  <SettingsModal />
-
-  <div class="w-full h-full flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} {chassisBorder} {shadow}">
-    <TopBar />
-
-    <div class="flex flex-1 overflow-hidden">
-      <LeftPanel />
-      <RightPanel />
-    </div>
+{#if $isLoading}
+  <div class="h-screen w-screen flex items-center justify-center bg-[#18181b] text-slate-500 font-mono text-xs">
+    INITIALIZING...
   </div>
+{:else}
+  <div class="h-screen w-screen font-sans flex items-center justify-center transition-colors duration-300 {bgMain} overflow-hidden">
+    
+    <SettingsModal />
 
-</div>
+    <div class="w-full h-full flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} {chassisBorder} {shadow}">
+      <TopBar />
+
+      <div class="flex flex-1 overflow-hidden">
+        <LeftPanel />
+        <RightPanel />
+      </div>
+    </div>
+
+  </div>
+{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import { isDarkMode, injectorAddress, injectorArgs } from '$lib/stores/stores';
   import { sendOsc } from '$lib/bridge';
   import TechInput from './shared/TechInput.svelte';
@@ -12,18 +13,18 @@
   <div class="mb-3">
     <h2 class="text-xs font-black flex items-center gap-2 uppercase tracking-wide {titleText}">
       <Terminal size={14} />
-      Injector
+      {$t('left_panel.injector_title')}
     </h2>
   </div>
   <div class="space-y-2">
     <TechInput 
-      label="Address" 
+      label={$t('left_panel.address')} 
       bind:value={$injectorAddress}
       placeholder="/address"
       isDark={$isDarkMode}
     />
     <TechInput 
-      label="Args" 
+      label={$t('left_panel.args')} 
       bind:value={$injectorArgs}
       placeholder="Val..."
       isDark={$isDarkMode}
@@ -31,7 +32,7 @@
     
     <button on:click={() => sendOsc($injectorAddress, $injectorArgs)} class="h-8 w-full border-2 font-bold uppercase tracking-widest active:translate-y-[1px] transition-all flex items-center justify-center gap-2 mt-1 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] text-[10px] {$isDarkMode ? 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600' : 'bg-slate-800 border-slate-900 text-white hover:bg-slate-700'}">
       <Send size={10} />
-      SEND
+      {$t('left_panel.send')}
     </button>
   </div>
 </div>

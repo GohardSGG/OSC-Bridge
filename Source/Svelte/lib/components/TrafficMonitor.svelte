@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'svelte-i18n';
     import { onMount, tick, onDestroy } from 'svelte';
     import { 
         isDarkMode, 
@@ -131,14 +132,14 @@
         <div class="flex items-center gap-3 flex-1">
             <Activity size={14} class={$isDarkMode ? 'text-slate-500' : 'text-slate-700'} />
             <span class="text-xs font-black uppercase tracking-wide whitespace-nowrap {titleText}">
-                Traffic Monitor
+                {$t('traffic_monitor.title')}
             </span>
             <div class="relative group flex-1 max-w-[200px]">
-                <Search size={10} class="absolute left-2 top-1.5 text-slate-500" />
+                <Search size={10} class="absolute left-2 top-0 bottom-0 my-auto text-slate-500" />
                 <input 
                     bind:value={$sentSearchTerm}
                     class="h-6 w-full border pl-6 pr-2 text-[10px] font-mono transition-all outline-none rounded-sm placeholder:text-slate-600 {searchInputBg}" 
-                    placeholder="FILTER LOGS..." 
+                    placeholder={$t('traffic_monitor.filter_logs')} 
                 />
             </div>
         </div>
@@ -153,7 +154,7 @@
                 {:else}
                     <PauseCircle size={10} />
                 {/if}
-                Auto Scroll
+                {$t('traffic_monitor.auto_scroll')}
             </button>
 
             <div class="w-px h-4 mx-1 {$isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}"></div>
@@ -169,7 +170,7 @@
         
         <!-- TX Panel (Height controlled by variable) -->
         <div style="height: {txPanelHeightPercent}%" class="flex flex-col min-h-0 overflow-hidden {$isDarkMode ? 'bg-[#111113]' : 'bg-white'}">
-            <SectionHeader label="Outgoing (TX)" icon={ArrowUpRight} count={$filteredSentLogs.length} isDark={$isDarkMode} />
+            <SectionHeader label={$t('traffic_monitor.outgoing')} icon={ArrowUpRight} count={$filteredSentLogs.length} isDark={$isDarkMode} />
             
             <div bind:this={txLogContainer} class="flex-1 overflow-y-auto p-0">
                 <div class="px-3 py-1 pb-2">
@@ -190,7 +191,7 @@
 
         <!-- RX Panel (Takes remaining space) -->
         <div class="flex-1 flex flex-col min-h-0 overflow-hidden {$isDarkMode ? 'bg-[#09090b]' : 'bg-[#fafafa]'}">
-            <SectionHeader label="Incoming (RX)" icon={ArrowDownLeft} count={$filteredRecvLogs.length} isDark={$isDarkMode} />
+            <SectionHeader label={$t('traffic_monitor.incoming')} icon={ArrowDownLeft} count={$filteredRecvLogs.length} isDark={$isDarkMode} />
             
             <div bind:this={rxLogContainer} class="flex-1 overflow-y-auto p-0">
                 <div class="px-3 py-1 pb-2">

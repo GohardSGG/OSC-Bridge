@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, locale } from 'svelte-i18n';
   import { 
     isDarkMode, 
     isSettingsOpen,
@@ -46,6 +47,10 @@
     settingsForwardTargets.update(targets => [...targets, ""]);
   };
 
+  const toggleLanguage = () => {
+    locale.update(l => l === 'en' ? 'zh-CN' : 'en');
+  };
+
 </script>
 
 {#if $isSettingsOpen}
@@ -56,7 +61,7 @@
     <div class="h-10 flex items-center justify-between px-4 select-none {headerBg}">
       <div class="flex items-center gap-2">
         <Settings size={14} />
-        <span class="text-xs font-bold uppercase tracking-widest">System Config</span>
+        <span class="text-xs font-bold uppercase tracking-widest">{$t('settings.title')}</span>
       </div>
       <div class="flex items-center gap-3">
         <button on:click={handleSaveAndClose} class="hover:text-emerald-400 transition-colors"><Check size={16} strokeWidth={3} /></button>
@@ -68,10 +73,19 @@
     <!-- Modal Content -->
     <div class="p-5 space-y-4 overflow-y-auto max-h-[85vh] {contentBg}">
       
+      <!-- Section: Language Switcher -->
+      <div>
+         <button on:click={toggleLanguage} class="w-full h-8 text-xs font-bold uppercase tracking-wider border-2 {$isDarkMode ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}">
+            Switch to {$locale === 'en' ? '中文' : 'English'}
+         </button>
+      </div>
+
+      <div class="h-px border-b {divider}"></div>
+
       <!-- Section: Connection -->
       <div>
          <h3 class="text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-2 {sectionTitle}">
-            <Server size={12} /> WebSocket Host
+            <Server size={12} /> {$t('settings.ws_host')}
          </h3>
          <TechInput bind:value={$settingsWsUrl} isDark={$isDarkMode} />
       </div>
@@ -81,7 +95,7 @@
       <!-- Section: Listen Ports -->
       <div>
          <h3 class="text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2 {sectionTitle}">
-            <Radio size={12} /> Listening Ports
+            <Radio size={12} /> {$t('settings.listening_ports')}
          </h3>
          <div class="space-y-2">
             {#each $settingsListenPorts as _, idx (idx)}
@@ -99,7 +113,7 @@
                on:click={addPort}
                class="w-full h-8 mt-2 border-2 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider active:translate-y-[1px] shadow-sm transition-all {addBtn}"
             >
-               <Plus size={12} strokeWidth={3} /> Add Port
+               <Plus size={12} strokeWidth={3} /> {$t('settings.add_port')}
             </button>
          </div>
       </div>
@@ -109,7 +123,7 @@
       <!-- Section: Forward Targets -->
       <div>
          <h3 class="text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2 {sectionTitle}">
-            <Send size={12} /> Forwarding Targets
+            <Send size={12} /> {$t('settings.forwarding_targets')}
          </h3>
          <div class="space-y-2">
             {#each $settingsForwardTargets as _, idx (idx)}
@@ -127,7 +141,7 @@
                on:click={addTarget}
                class="w-full h-8 mt-2 border-2 border-dashed flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider transition-all {$isDarkMode ? 'bg-transparent border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-800'}"
             >
-               <Plus size={12} /> Add Target
+               <Plus size={12} /> {$t('settings.add_target')}
             </button>
          </div>
       </div>

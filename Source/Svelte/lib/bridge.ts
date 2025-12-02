@@ -25,9 +25,9 @@ function getCurrentTimestamp(): string {
   return now.toTimeString().split(' ')[0]; // HH:MM:SS format
 }
 
-function addSystemLog(type: 'info' | 'warning' | 'error' | 'success' | 'connect', msg: string) {
+function addSystemLog(type: 'info' | 'warning' | 'error' | 'success' | 'connect', key: string, values?: object) {
     systemLogs.update(logs => {
-        const newLog = { id: getUniqueLogId(), time: getCurrentTimestamp(), type, msg };
+        const newLog = { id: getUniqueLogId(), time: getCurrentTimestamp(), type, key, values };
         const newLogs = [...logs, newLog];
         if (newLogs.length > 500) {
             return newLogs.slice(newLogs.length - 500);
@@ -39,7 +39,7 @@ function addSystemLog(type: 'info' | 'warning' | 'error' | 'success' | 'connect'
 
 // --- WebSocket Logic ---
 export function initializeBridge() {
-  addSystemLog('info', '🔄 正在连接到 OSC Bridge 日志服务...');
+  addSystemLog('info', 'logs.connecting');
   
   // Clear mock data on initialization attempt
   systemLogs.set([]);
@@ -49,7 +49,7 @@ export function initializeBridge() {
   websocket = new WebSocket('ws://localhost:9122/logs');
 
   websocket.onopen = () => {
-    addSystemLog('success', '✅ WebSocket 连接已建立。');
+    addSystemLog('success', 'logs.connected');
   };
 
   websocket.onmessage = (event) => {
@@ -57,73 +57,42 @@ export function initializeBridge() {
       const payload = JSON.parse(event.data);
       handleBackendMessage(payload);
     } catch (e) {
-      addSystemLog('error', `❌ 解析后端消息失败: ${e}`);
+      addSystemLog('error', 'logs.parse_error', { error: e });
     }
   };
 
   websocket.onclose = () => {
-    addSystemLog('warning', '⚠️ WebSocket 连接已断开，5秒后尝试重连...');
+    addSystemLog('warning', 'logs.disconnected');
     setTimeout(initializeBridge, 5000);
   };
 
   websocket.onerror = (error) => {
-    addSystemLog('error', `❌ WebSocket 连接错误: ${error}`);
+    addSystemLog('error', 'logs.error', { error });
   };
 }
 
 function handleBackendMessage(payload: any) {
   const { type, data } = payload;
-  const timestamp = getCurrentTimestamp();
-  const id = getUniqueLogId();
-
+  
   switch (type) {
     case 'OscSent':
-      oscSentLogs.update(logs => {
-          const newLog = {
-            id,
-            time: timestamp,
-            path: data.addr,
-            val: data.args.map((a: any) => a.value).join(', '),
-            type: data.args.map((a: any) => a.type).join(', '),
-            target: data.source_id,
-            ...data
-          };
-          const newLogs = [...logs, newLog];
-          if (newLogs.length > 500) {
-              return newLogs.slice(newLogs.length - 500);
-          }
-          return newLogs;
-      });
+      // This is handled in TrafficMonitor, not system log
       break;
     case 'OscReceived':
-      oscRecvLogs.update(logs => {
-          const newLog = {
-            id,
-            time: timestamp,
-            path: data.addr,
-            val: data.args.map((a: any) => a.value).join(', '),
-            type: data.args.map((a: any) => a.type).join(', '),
-            source: data.source_id,
-            ...data
-          };
-          const newLogs = [...logs, newLog];
-          if (newLogs.length > 500) {
-              return newLogs.slice(newLogs.length - 500);
-          }
-          return newLogs;
-      });
+      // This is handled in TrafficMonitor, not system log
       break;
     case 'ClientConnected':
-      addSystemLog('connect', `🔌 客户端 #${data.client_id} 已连接 (${data.client_type} - ${data.remote_addr})`);
+      addSystemLog('connect', 'logs.client_connected', { clientId: data.client_id, clientType: data.client_type, remoteAddr: data.remote_addr });
       break;
     case 'ClientDisconnected':
-      addSystemLog('info', `🔌 客户端 #${data.client_id} 已断开。`);
+      addSystemLog('info', 'logs.client_disconnected', { clientId: data.client_id });
       break;
     case 'System':
-      addSystemLog('info', data);
+      // Assuming system messages from backend are simple strings for now
+      systemLogs.update(logs => [...logs, { id: getUniqueLogId(), time: getCurrentTimestamp(), type: 'info', msg: data }]);
       break;
     default:
-      addSystemLog('info', `后端 (未知类型 '${type}'): ${JSON.stringify(data)}`);
+      addSystemLog('info', 'logs.unknown_backend_msg', { type, data: JSON.stringify(data) });
       break;
   }
 }
@@ -153,12 +122,12 @@ function parseOSCArguments(argsText: string): any[] {
 // --- UI Actions ---
 export function sendOsc(address: string, argsText: string) {
   if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-    addSystemLog('error', '❌ WebSocket 未连接，无法发送消息。');
+    addSystemLog('error', 'logs.websocket_not_connected');
     return;
   }
   
   if (!address) {
-    addSystemLog('error', '❌ OSC 地址不能为空。');
+    addSystemLog('error', 'logs.osc_address_empty');
     return;
   }
   
@@ -169,7 +138,7 @@ export function sendOsc(address: string, argsText: string) {
     
     websocket.send(binaryData);
   } catch (error) {
-    addSystemLog('error', `❌ 解析或发送 OSC 消息失败: ${error}`);
+    addSystemLog('error', 'logs.osc_send_error', { error });
   }
 }
 
@@ -196,9 +165,9 @@ export async function saveConfiguration() {
     
     try {
         await invoke('save_bridge_config', { config: newConfig });
-        addSystemLog('success', '✅ 配置保存成功，服务正在重启...');
+        addSystemLog('success', 'logs.config_saved');
     } catch (error) {
-        addSystemLog('error', `❌ 保存配置失败: ${error}`);
+        addSystemLog('error', 'logs.config_save_error', { error });
     }
 
     unsubscribe.forEach(unsub => unsub());
@@ -210,13 +179,13 @@ export async function loadInitialConfig() {
         settingsListenPorts.set(serverConfig.ListenPorts || []);
         settingsForwardTargets.set(serverConfig.TargetPorts || []);
         settingsWsUrl.set((serverConfig.WS && serverConfig.WS[0]) || 'ws://localhost:9122');
-        addSystemLog('info', '🚀 已从后端加载初始配置。');
+        addSystemLog('info', 'logs.config_loaded');
 
         // Also load tray config on startup
         await loadTrayConfig();
 
     } catch (error) {
-        addSystemLog('error', `❌ 加载初始配置失败: ${error}`);
+        addSystemLog('error', 'logs.config_load_error', { error });
     }
 }
 
@@ -225,8 +194,8 @@ export async function loadTrayConfig() {
         const trayConfig = await invoke<{auto_start: boolean, silent_start: boolean}>('get_config');
         autoStartEnabled.set(trayConfig.auto_start);
         silentStartEnabled.set(trayConfig.silent_start);
-        addSystemLog('info', `📋 托盘配置: 开机自启 ${trayConfig.auto_start ? '已启用' : '已禁用'}, 静默启动 ${trayConfig.silent_start ? '已启用' : '已禁用'}`);
+        addSystemLog('info', 'logs.tray_config_loaded', { autoStart: trayConfig.auto_start ? 'enabled' : 'disabled', silentStart: trayConfig.silent_start ? 'enabled' : 'disabled' });
     } catch (error) {
-        addSystemLog('error', `❌ 加载托盘配置失败: ${error}`);
+        addSystemLog('error', 'logs.tray_config_load_error', { error });
     }
 }
