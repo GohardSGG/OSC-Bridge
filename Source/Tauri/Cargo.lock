@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "OSC-Bridge"
-version = "1.0.1"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "auto-launch",
@@ -4472,7 +4472,8 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-opener"
 version = "2.4.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=v2#ca3c3aa28afd302178270df48dc3f6df45fa373b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecee219f11cdac713ab32959db5d0cceec4810ba4f4458da992292ecf9660321"
 dependencies = [
  "dunce",
  "glob",
@@ -4514,7 +4515,8 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-store"
 version = "2.3.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=v2#ca3c3aa28afd302178270df48dc3f6df45fa373b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5916c609664a56c82aeaefffca9851fd072d4d41f73d63f22ee3ee451508194f"
 dependencies = [
  "dunce",
  "serde",

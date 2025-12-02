@@ -282,17 +282,17 @@ fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
     #[cfg(windows)]
     {
         // On Windows, only load from beside the executable
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let config_path = exe_dir.join("config.json");
-                if config_path.exists() {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let config_path = exe_dir.join("config.json");
+            if config_path.exists() {
                     println!("Windows: Loading config from executable directory: {:?}", config_path);
-                    if let Ok(content) = std::fs::read_to_string(&config_path) {
-                        return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
-                            eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
-                            BridgeConfig::default()
-                        });
-                    }
+                if let Ok(content) = std::fs::read_to_string(&config_path) {
+                    return serde_json::from_str::<BridgeConfig>(&content).unwrap_or_else(|e| {
+                        eprintln!("解析 config.json 失败: {}, 将使用默认配置", e);
+                        BridgeConfig::default()
+                    });
+                }
                 }
             }
         }
@@ -320,9 +320,9 @@ fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
                 if let Ok(content) = std::fs::read_to_string(&default_config_path) {
                     if let Ok(config) = serde_json::from_str::<BridgeConfig>(&content) {
                         return config;
-                    }
-                }
-             }
+            }
+        }
+    }
         }
     }
 
@@ -411,7 +411,7 @@ pub fn run() {
             app.manage(StartupState {
                 scale_factor: Mutex::new(scale_factor),
             });
-
+            
             // 强制设置窗口尺寸和位置，以覆盖 tauri-plugin-store 的状态恢复
             // 使用 LogicalSize 来确保在不同DPI的屏幕上表现一致
             let _ = window.set_size(tauri::LogicalSize::new(900, 630));
