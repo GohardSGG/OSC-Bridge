@@ -138,7 +138,7 @@ graph TD
 2. 创建您的特性分支 (`git checkout -b feature/AmazingFeature`)。
 3. 提交您的更改 (`git commit -m 'feat: Add some AmazingFeature'`)。
 4. 推送到分支 (`git push origin feature/AmazingFeature`)。
-5. 开启一个 **Pull Request**。
+5. 开启一个 **Pull Request**。n
 
 ## 📝 更新日志
 

@@ -28,7 +28,8 @@
         "listening_ports": "Listening Ports",
         "add_port": "Add Port",
         "forwarding_targets": "Forwarding Targets",
-        "add_target": "Add Target"
+        "add_target": "Add Target",
+        "ui_scale": "UI Scale"
     },
     "logs": {
         "connecting": "🔄 Connecting to OSC Bridge log service...",

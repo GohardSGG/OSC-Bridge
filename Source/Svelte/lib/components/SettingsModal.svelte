@@ -5,7 +5,8 @@
     isSettingsOpen,
     settingsWsUrl,
     settingsListenPorts,
-    settingsForwardTargets
+    settingsForwardTargets,
+    uiScale
   } from '$lib/stores/stores';
   import { saveConfiguration } from '$lib/bridge';
   import TechInput from './shared/TechInput.svelte';
@@ -81,6 +82,21 @@
       </div>
 
       <div class="h-px border-b {divider}"></div>
+
+      <!-- Section: UI Scale -->
+      <div>
+         <h3 class="text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2 {sectionTitle}">
+            {$t('settings.ui_scale')} ({Math.round($uiScale * 100)}%)
+         </h3>
+         <input 
+            type="range" 
+            min="0.75" 
+            max="2" 
+            step="0.05" 
+            bind:value={$uiScale}
+            class="w-full h-2 rounded-lg appearance-none cursor-pointer {$isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}"
+          />
+      </div>
 
       <!-- Section: Connection -->
       <div>

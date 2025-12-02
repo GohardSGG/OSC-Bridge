@@ -22,8 +22,8 @@ async function moveBundles() {
                 if (file.endsWith('.exe')) {
                     const src = path.join(nsisDir, file);
                     const dest = path.join(releaseDir, file);
-                    console.log(`Moving ${file} to Build/Release/`);
-                    await fs.move(src, dest, { overwrite: true });
+                    console.log(`Copying ${file} to Build/Release/`);
+                    await fs.copy(src, dest, { overwrite: true });
                 }
             }
         }
@@ -35,8 +35,8 @@ async function moveBundles() {
                 if (file.endsWith('.msi')) {
                     const src = path.join(msiDir, file);
                     const dest = path.join(releaseDir, file);
-                    console.log(`Moving ${file} to Build/Release/`);
-                    await fs.move(src, dest, { overwrite: true });
+                    console.log(`Copying ${file} to Build/Release/`);
+                    await fs.copy(src, dest, { overwrite: true });
                 }
             }
         }

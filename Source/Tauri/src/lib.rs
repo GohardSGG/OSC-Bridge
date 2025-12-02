@@ -50,12 +50,23 @@ struct AppState {
     auto_launch: Mutex<Option<AutoLaunch>>,
 }
 
+// 新增一个用于存储启动时配置的状态
+struct StartupState {
+    scale_factor: Mutex<f64>,
+}
+
 // 新增命令，用于前端主动获取初始的OSC配置
 // 这是解决启动时序问题的最可靠方法
 #[tauri::command]
 fn get_bridge_config(state: State<AppState>) -> Result<BridgeConfig, String> {
     let config = state.bridge_config.lock().map_err(|e| e.to_string())?;
     Ok(config.clone())
+}
+
+#[tauri::command]
+fn get_initial_scale_factor(state: State<StartupState>) -> Result<f64, String> {
+    let factor = state.scale_factor.lock().map_err(|e| e.to_string())?;
+    Ok(*factor)
 }
 
 #[tauri::command]
@@ -80,7 +91,7 @@ async fn save_bridge_config(config: BridgeConfig, state: State<'_, AppState>) ->
     // 1. 更新内存中的状态
     *state.bridge_config.lock().unwrap() = config.clone();
 
-    // 2. 将新配置写入文件
+    // 2. 将新配置写入文件 (回到 exe 旁边)
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             let config_path = exe_dir.join("config.json");
@@ -90,8 +101,7 @@ async fn save_bridge_config(config: BridgeConfig, state: State<'_, AppState>) ->
         }
     }
 
-    // 3. 通知 bridge 服务重载 (通过 HTTP 请求, 这是与后台服务解耦的好方法)
-    // 注意: 这里的 ws_url 实际上是 http server 的地址
+    // 3. 通知 bridge 服务重载
     let http_url = config.ws.get(0).cloned().unwrap_or_else(|| "ws://localhost:9122".to_string()).replace("ws://", "http://");
     let client = reqwest::Client::new();
     if let Err(e) = client.post(format!("{}/reload-config", http_url)).send().await {
@@ -361,6 +371,12 @@ pub fn run() {
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             
+            // 获取缩放因子
+            let scale_factor = window.scale_factor().unwrap_or(1.0);
+            app.manage(StartupState {
+                scale_factor: Mutex::new(scale_factor),
+            });
+
             // 强制设置窗口尺寸和位置，以覆盖 tauri-plugin-store 的状态恢复
             // 使用 LogicalSize 来确保在不同DPI的屏幕上表现一致
             let _ = window.set_size(tauri::LogicalSize::new(900, 630));
@@ -542,6 +558,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_bridge_config,
             get_formatted_ports, // <--- 在这里注册新命令
+            get_initial_scale_factor,
             get_config,
             set_auto_start,
             set_silent_start,

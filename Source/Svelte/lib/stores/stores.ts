@@ -15,6 +15,7 @@ export const isDarkMode = writable(false);
 export const isSettingsOpen = writable(false);
 export const isAutoScroll = writable(true);
 export const isAlwaysOnTop = writable(false);
+export const uiScale = writable(1.0);
 
 // --- Log Stores ---
 export const systemLogs = writable<SystemLogEntry[]>([]);

@@ -9,11 +9,20 @@ import {
   settingsForwardTargets,
   settingsWsUrl,
   autoStartEnabled,
-  silentStartEnabled
+  silentStartEnabled,
+  uiScale
 } from './stores/stores';
 
 let websocket: WebSocket | null = null;
 let logIdCounter = 0;
+
+// Subscribe to uiScale changes and save them automatically to localStorage
+uiScale.subscribe((value) => {
+    // Check for window to ensure it's running in a browser context
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('uiScale', value.toString());
+    }
+});
 
 // --- Helper Functions ---
 function getUniqueLogId(): string {
@@ -209,6 +218,21 @@ export async function saveConfiguration() {
 
 export async function loadInitialConfig() {
     try {
+        // 1. Try to load saved UI scale from localStorage
+        const savedUiScale = localStorage.getItem('uiScale');
+        
+        if (savedUiScale) {
+            const scaleValue = parseFloat(savedUiScale);
+            uiScale.set(scaleValue);
+            addSystemLog('info', 'logs.scale_factor_loaded_from_store', { factor: scaleValue });
+        } else {
+            // 2. If not found, get from backend and save it as default
+            const scaleFactor = await invoke<number>('get_initial_scale_factor');
+            uiScale.set(scaleFactor);
+            localStorage.setItem('uiScale', scaleFactor.toString());
+            addSystemLog('info', 'logs.scale_factor_loaded_from_backend', { factor: scaleFactor });
+        }
+
         const serverConfig = await invoke<{ListenPorts: string[], TargetPorts: string[], WS: string[]}>('get_bridge_config');
         settingsListenPorts.set(serverConfig.ListenPorts || []);
         settingsForwardTargets.set(serverConfig.TargetPorts || []);

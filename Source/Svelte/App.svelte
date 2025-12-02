@@ -2,7 +2,7 @@
   import '$lib/i18n'; // Import to initialize i18n
   import { isLoading } from 'svelte-i18n';
   import { onMount } from 'svelte';
-  import { isDarkMode } from '$lib/stores/stores';
+  import { isDarkMode, uiScale } from '$lib/stores/stores';
   import { initializeBridge, loadInitialConfig } from '$lib/bridge';
   import TopBar from '$lib/components/TopBar.svelte';
   import LeftPanel from '$lib/components/LeftPanel.svelte';
@@ -13,6 +13,11 @@
     initializeBridge();
     loadInitialConfig();
   });
+
+  // Reactive statement to apply UI scale
+  $: if (typeof document !== 'undefined' && $uiScale) {
+    document.documentElement.style.fontSize = `${16 * $uiScale}px`;
+  }
 
   $: bgMain = $isDarkMode ? 'bg-[#09090b]' : 'bg-[#d4d4d8]';
   $: chassisBg = $isDarkMode ? 'bg-[#18181b]' : 'bg-[#f4f4f5]';

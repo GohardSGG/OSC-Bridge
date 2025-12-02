@@ -9,7 +9,7 @@
         "close": "关闭"
     },
     "traffic_monitor": {
-        "title": "消息n监视器",
+        "title": "消息监视器",
         "filter_logs": "筛选日志...",
         "auto_scroll": "自动滚动",
         "outgoing": "传出 (TX)",
@@ -28,7 +28,8 @@
         "listening_ports": "监听端口",
         "add_port": "添加端口",
         "forwarding_targets": "转发目标",
-        "add_target": "添加目标"
+        "add_target": "添加目标",
+        "ui_scale": "界面缩放"
     },
     "logs": {
         "connecting": "🔄 正在连接到 OSC Bridge 日志服务...",
