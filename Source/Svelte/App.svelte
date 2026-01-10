@@ -9,9 +9,18 @@
   import RightPanel from '$lib/components/RightPanel.svelte';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
 
-  onMount(() => {
-    initializeBridge();
-    loadInitialConfig();
+  onMount(async () => {
+    await loadInitialConfig();
+    // Get the updated URL from the store after config load
+    let wsUrl = 'ws://localhost:9122';
+    // Access the store value directly (requires importing get if not using $ syntax in script)
+    // Or simpler: rely on the store being updated by loadInitialConfig
+    // We can't easily access the store value synchronously here without subscribing
+    // But loadInitialConfig sets settingsWsUrl.
+    
+    // Let's pass the value directly from loadInitialConfig's side effect if possible?
+    // Actually, loadInitialConfig updates the store. bridge.ts can read the store.
+    initializeBridge(); 
   });
 
   // Reactive statement to apply UI scale

@@ -429,14 +429,6 @@ pub fn run() {
             let bridge_config = load_bridge_config(&app.handle());
             println!("加载的OSC配置: {:?}", bridge_config);
 
-            // 将 Tauri app handle 复制一份用于传递给后台任务
-            let app_handle = app.handle().clone();
-            
-            // 2. 在后台启动桥接服务
-            tauri::async_runtime::spawn(async move {
-                bridge::run_bridge(app_handle).await;
-            });
-            
             // 3. 创建自启动实例
             let args = if app_config.silent_start {
                 vec!["--silent"]
@@ -457,6 +449,25 @@ pub fn run() {
                 &std::env::current_exe().unwrap().to_string_lossy(),
                 &args,
             );
+
+            // 自动修复逻辑：
+            // 1. 尝试清理旧的 "OSC Bridge" (带空格) 启动项，防止冲突
+            #[cfg(not(target_os = "macos"))]
+            {
+                let legacy_launch = AutoLaunch::new(
+                    "OSC Bridge", 
+                    &std::env::current_exe().unwrap().to_string_lossy(),
+                    &[] as &[&str]
+                );
+                let _ = legacy_launch.disable(); 
+            }
+
+            // 2. 如果配置为自启动，强制刷新注册表以匹配当前路径和参数
+            if app_config.auto_start {
+                if let Err(e) = auto_launch.enable() {
+                     eprintln!("启动时同步自启动注册表失败: {}", e);
+                }
+            }
             
             // 4. 初始化应用状态
             let app_state = AppState {
@@ -465,6 +476,12 @@ pub fn run() {
                 auto_launch: Mutex::new(Some(auto_launch)),
             };
             app.manage(app_state);
+            
+            // 2. 在后台启动桥接服务 (必须在 app.manage 之后)
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                bridge::run_bridge(app_handle).await;
+            });
             
             // 5. 根据配置或参数决定是否隐藏窗口
             let cli_args: Vec<String> = std::env::args().collect();

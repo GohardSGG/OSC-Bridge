@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OSC-Bridge",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "identifier": "com.osc-bridge.app",
   "build": {
     "beforeDevCommand": "npm run vite-dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:1421",
     "beforeBuildCommand": "npm run vite-build",
     "frontendDist": "../../Build"
   },
