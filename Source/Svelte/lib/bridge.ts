@@ -38,9 +38,6 @@ function addSystemLog(type: 'info' | 'warning' | 'error' | 'success' | 'connect'
   systemLogs.update(logs => {
     const newLog = { id: getUniqueLogId(), time: getCurrentTimestamp(), type, key, values };
     const newLogs = [...logs, newLog];
-    if (newLogs.length > 500) {
-      return newLogs.slice(newLogs.length - 500);
-    }
     return newLogs;
   });
 }
@@ -108,9 +105,6 @@ function handleBackendMessage(payload: any) {
           ...data
         };
         const newLogs = [...logs, newLog];
-        if (newLogs.length > 500) {
-          return newLogs.slice(newLogs.length - 500);
-        }
         return newLogs;
       });
       break;
@@ -126,9 +120,6 @@ function handleBackendMessage(payload: any) {
           ...data
         };
         const newLogs = [...logs, newLog];
-        if (newLogs.length > 500) {
-          return newLogs.slice(newLogs.length - 500);
-        }
         return newLogs;
       });
       break;
@@ -195,6 +186,10 @@ export function sendOsc(address: string, argsText: string) {
 
 export async function hideWindow() {
   await getCurrentWindow().hide();
+}
+
+export async function minimizeWindow() {
+  await getCurrentWindow().minimize();
 }
 
 export async function setAlwaysOnTop(enabled: boolean) {

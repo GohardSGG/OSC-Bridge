@@ -2,8 +2,9 @@
 use tauri::{AppHandle, Manager, State};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
-use auto_launch::AutoLaunch;
 use std::collections::HashMap;
+#[cfg(target_os = "macos")]
+use auto_launch::AutoLaunch;
 
 mod bridge; // 声明新的 bridge 模块
 
@@ -47,6 +48,7 @@ impl Default for BridgeConfig {
 struct AppState {
     app_config: Mutex<AppConfig>,
     bridge_config: Mutex<BridgeConfig>,
+    #[cfg(target_os = "macos")]
     auto_launch: Mutex<Option<AutoLaunch>>,
 }
 
@@ -168,7 +170,13 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
         vec![]
     };
     
+    #[cfg(target_os = "windows")]
+    {
+        return set_windows_task_start(enabled, &args);
+    }
+
     #[cfg(target_os = "macos")]
+    {
     let new_auto_launch = AutoLaunch::new(
         "OSC-Bridge",
         &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
@@ -190,6 +198,7 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
     
     let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
     *auto_launch_guard = Some(new_auto_launch);
+    } // End of macos block
     
     Ok(())
 }
@@ -207,17 +216,19 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
             vec![]
         };
         
+        #[cfg(target_os = "windows")]
+        {
+             set_windows_task_start(true, &args)?;
+        }
+
         #[cfg(target_os = "macos")]
+        {
         let new_auto_launch = AutoLaunch::new(
             "OSC-Bridge",
             &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
             true, // 在macOS上使用Launch Agent
             &args,
         );
-        #[cfg(not(target_os = "macos"))]
-        let new_auto_launch = AutoLaunch::new(
-            "OSC-Bridge",
-            &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
             &args,
         );
         
@@ -225,6 +236,57 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
         
         let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
         *auto_launch_guard = Some(new_auto_launch);
+        }
+    }
+    
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn set_windows_task_start(enabled: bool, args: &[&str]) -> Result<(), String> {
+    use std::process::Command;
+    use std::os::windows::process::CommandExt;
+
+    let task_name = "OSC-Bridge";
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy().into_owned();
+    
+    // 始终先尝试尝试删除现有任务，以避免冲突或参数更新
+    // 忽略删除失败的错误（可能是任务不存在）
+    let _ = Command::new("schtasks")
+        .arg("/Delete")
+        .arg("/F")
+        .arg("/TN")
+        .arg(task_name)
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .output();
+
+    if enabled {
+        // 构建参数字符串
+        let args_str = args.join(" ");
+        let command_str = format!("'{}' {}", exe_path, args_str);
+        
+        // 创建新任务
+        // /SC ONLOGON - 登录时触发
+        // /RL HIGHEST - 以最高权限运行 (关键!)
+        let output = Command::new("schtasks")
+            .arg("/Create")
+            .arg("/F")
+            .arg("/SC")
+            .arg("ONLOGON")
+            .arg("/RL")
+            .arg("HIGHEST")
+            .arg("/TN")
+            .arg(task_name)
+            .arg("/TR")
+            .arg(command_str)
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output()
+            .map_err(|e| format!("执行 schtasks 失败: {}", e))?;
+            
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("创建计划任务失败: {}", stderr));
+        }
     }
     
     Ok(())
@@ -443,12 +505,6 @@ pub fn run() {
                 true, // 在macOS上使用Launch Agent
                 &args,
             );
-            #[cfg(not(target_os = "macos"))]
-            let auto_launch = AutoLaunch::new(
-                "OSC-Bridge",
-                &std::env::current_exe().unwrap().to_string_lossy(),
-                &args,
-            );
 
             // 自动修复逻辑：
             // 1. 尝试清理旧的 "OSC Bridge" (带空格) 启动项，防止冲突
@@ -462,10 +518,19 @@ pub fn run() {
                 let _ = legacy_launch.disable(); 
             }
 
-            // 2. 如果配置为自启动，强制刷新注册表以匹配当前路径和参数
+            // 2. 如果配置为自启动，强制刷新任务
             if app_config.auto_start {
-                if let Err(e) = auto_launch.enable() {
-                     eprintln!("启动时同步自启动注册表失败: {}", e);
+                #[cfg(target_os = "windows")]
+                {
+                    if let Err(e) = set_windows_task_start(true, &args) {
+                        eprintln!("启动时同步Windows任务计划失败: {}", e);
+                    }
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    if let Err(e) = auto_launch.enable() {
+                        eprintln!("启动时同步自启动注册表失败: {}", e);
+                    }
                 }
             }
             
@@ -473,6 +538,7 @@ pub fn run() {
             let app_state = AppState {
                 app_config: Mutex::new(app_config.clone()),
                 bridge_config: Mutex::new(bridge_config.clone()),
+                #[cfg(target_os = "macos")]
                 auto_launch: Mutex::new(Some(auto_launch)),
             };
             app.manage(app_state);
