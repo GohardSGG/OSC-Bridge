@@ -3,7 +3,6 @@ use tauri::{AppHandle, Manager, State};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[cfg(target_os = "macos")]
 use auto_launch::AutoLaunch;
 
 mod bridge; // 声明新的 bridge 模块
@@ -172,7 +171,7 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
     
     #[cfg(target_os = "windows")]
     {
-        return set_windows_task_start(enabled, &args);
+        set_windows_task_start(enabled, &args)?;
     }
 
     #[cfg(target_os = "macos")]
@@ -229,8 +228,7 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
             true, // 在macOS上使用Launch Agent
             &args,
         );
-            &args,
-        );
+
         
         new_auto_launch.enable().map_err(|e| format!("更新自启动配置失败: {}", e))?;
         
@@ -339,7 +337,7 @@ fn load_app_config(app: &AppHandle) -> AppConfig {
 }
 
 // 加载OSC桥接服务配置 (新函数)
-fn load_bridge_config(app_handle: &AppHandle) -> BridgeConfig {
+fn load_bridge_config(_app_handle: &AppHandle) -> BridgeConfig {
     // --- Platform-Specific Load Logic ---
     #[cfg(windows)]
     {
@@ -510,12 +508,13 @@ pub fn run() {
             // 1. 尝试清理旧的 "OSC Bridge" (带空格) 启动项，防止冲突
             #[cfg(not(target_os = "macos"))]
             {
+                // 仅当能成功初始化时才尝试禁用
                 let legacy_launch = AutoLaunch::new(
                     "OSC Bridge", 
-                    &std::env::current_exe().unwrap().to_string_lossy(),
+                    &std::env::current_exe().unwrap_or_default().to_string_lossy(),
                     &[] as &[&str]
                 );
-                let _ = legacy_launch.disable(); 
+                let _ = legacy_launch.disable();
             }
 
             // 2. 如果配置为自启动，强制刷新任务
