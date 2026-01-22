@@ -1,0 +1,28 @@
+    Checking OSC-Bridge v2.1.8 (C:\Code\Music\OSC-Bridge\Source\Tauri)
+error[E0425]: cannot find value `app` in this scope
+   --> src\lib.rs:812:5
+    |
+812 |     app.run(|app_handle, event| match event {
+    |     ^^^ not found in this scope
+
+warning: unused import: `Output`
+ --> src\schtasks.rs:4:29
+  |
+4 | use std::process::{Command, Output};
+  |                             ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: variable does not need to be mutable
+  --> src\lib.rs:15:9
+   |
+15 |     let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `OSC-Bridge` (lib) generated 2 warnings
+error: could not compile `OSC-Bridge` (lib) due to 1 previous error; 2 warnings emitted

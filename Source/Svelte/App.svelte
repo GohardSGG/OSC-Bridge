@@ -12,7 +12,7 @@
   onMount(async () => {
     await loadInitialConfig();
     // Get the updated URL from the store after config load
-    let wsUrl = "ws://localhost:9122";
+    // Get the updated URL from the store after config load
     // Access the store value directly (requires importing get if not using $ syntax in script)
     // Or simpler: rely on the store being updated by loadInitialConfig
     // We can't easily access the store value synchronously here without subscribing

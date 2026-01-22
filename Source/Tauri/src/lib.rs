@@ -1,11 +1,57 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, WebviewWindowBuilder, WebviewUrl, WebviewWindow};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use auto_launch::AutoLaunch;
 
 mod bridge; // 声明新的 bridge 模块
+#[cfg(target_os = "windows")]
+mod schtasks; // XML 任务计划模块
+
+// 辅助函数：创建主窗口
+// 辅助函数：创建主窗口 (Robust Implementation)
+fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<WebviewWindow> {
+    let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("OSC Bridge")
+        .inner_size(900.0, 630.0)
+        .decorations(false)
+        .transparent(true)
+        .visible(false); // 初始不可见，防止闪烁
+        
+    // 这里可以参考 clash-verge-rev 注入初始化脚本，目前暂不需要
+    
+    let window = builder.build()?;
+    
+    // Windows 特有的模糊效果
+    // Windows 特有的模糊效果
+    // 移除 window_vibrancy 调用以消除"描边之外的模糊层"
+    // clash-verge-rev 未使用此效果，使用纯色背景更干净
+    // #[cfg(target_os = "windows")]
+    // if let Some(window) = app.get_webview_window("main") {
+    //     use window_vibrancy::apply_blur;
+    //     let _ = apply_blur(&window, Some((0, 0, 0, 0)));
+    // }
+    
+    if visible {
+        window.show()?;
+        window.set_focus()?;
+    }
+    
+    Ok(window)
+}
+
+// 辅助函数：创建 Splash 窗口
+fn create_splash_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
+    WebviewWindowBuilder::new(app, "splashscreen", WebviewUrl::App("splashscreen.html".into()))
+        .title("OSC Bridge")
+        .inner_size(200.0, 100.0)
+        .decorations(false)
+        .transparent(true)
+        .center()
+        .always_on_top(true)
+        .build()
+}
 
 // 应用配置结构
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,6 +95,7 @@ struct AppState {
     bridge_config: Mutex<BridgeConfig>,
     #[cfg(target_os = "macos")]
     auto_launch: Mutex<Option<AutoLaunch>>,
+    is_exiting: Mutex<bool>, // 新增退出标志
 }
 
 // 新增一个用于存储启动时配置的状态
@@ -76,6 +123,42 @@ fn get_config(state: State<AppState>) -> Result<AppConfig, String> {
     Ok(config.clone())
 }
 
+// 应用就绪命令 - 前端加载完成后调用，关闭 splash 并根据配置显示/隐藏主窗口
+#[tauri::command]
+async fn app_ready(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    tracing::info!("app_ready 命令被调用");
+    
+    // 1. 关闭 splash screen (如果存在)
+    if let Some(splash) = app.get_webview_window("splashscreen") {
+        tracing::info!("正在关闭 Splash 屏幕");
+        let _ = splash.close();
+    }
+    
+    // 2. 检查是否静默启动
+    let config = state.app_config.lock().map_err(|e| e.to_string())?;
+    let cli_args: Vec<String> = std::env::args().collect();
+    let is_silent_mode = config.silent_start || cli_args.contains(&"--silent".to_string());
+    
+    // 3. 窗口可见性控制
+    // 
+    // 关键设计决策：
+    // - 静默模式：不做任何事！窗口的可见性完全由用户通过托盘图标控制。
+    //   这样可以彻底避免与用户操作产生竞态条件。
+    // - 正常模式：显示主窗口（这是 app_ready 的标准职责）。
+    //
+    if !is_silent_mode {
+        if let Some(main) = app.get_webview_window("main") {
+            tracing::info!("正常模式：显示主窗口");
+            let _ = main.show();
+            let _ = main.set_focus();
+        }
+    } else {
+        tracing::info!("静默模式：跳过窗口显示逻辑，由用户通过托盘控制");
+    }
+    
+    Ok(())
+}
+
 // 新增命令，用于前端获取格式化后的端口字符串
 #[tauri::command]
 fn get_formatted_ports(state: State<AppState>) -> Result<FormattedPorts, String> {
@@ -88,7 +171,7 @@ fn get_formatted_ports(state: State<AppState>) -> Result<FormattedPorts, String>
 
 // 新增命令，用于前端保存OSC配置并触发重载
 #[tauri::command]
-async fn save_bridge_config(config: BridgeConfig, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+async fn save_bridge_config(config: BridgeConfig, _app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // 1. 更新内存中的状态
     *state.bridge_config.lock().unwrap() = config.clone();
 
@@ -241,53 +324,12 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
 }
 
 #[cfg(target_os = "windows")]
-fn set_windows_task_start(enabled: bool, args: &[&str]) -> Result<(), String> {
-    use std::process::Command;
-    use std::os::windows::process::CommandExt;
-
-    let task_name = "OSC-Bridge";
-    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy().into_owned();
-    
-    // 始终先尝试尝试删除现有任务，以避免冲突或参数更新
-    // 忽略删除失败的错误（可能是任务不存在）
-    let _ = Command::new("schtasks")
-        .arg("/Delete")
-        .arg("/F")
-        .arg("/TN")
-        .arg(task_name)
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output();
-
+fn set_windows_task_start(enabled: bool, _args: &[&str]) -> Result<(), String> {
     if enabled {
-        // 构建参数字符串
-        let args_str = args.join(" ");
-        let command_str = format!("'{}' {}", exe_path, args_str);
-        
-        // 创建新任务
-        // /SC ONLOGON - 登录时触发
-        // /RL HIGHEST - 以最高权限运行 (关键!)
-        let output = Command::new("schtasks")
-            .arg("/Create")
-            .arg("/F")
-            .arg("/SC")
-            .arg("ONLOGON")
-            .arg("/RL")
-            .arg("HIGHEST")
-            .arg("/TN")
-            .arg(task_name)
-            .arg("/TR")
-            .arg(command_str)
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .output()
-            .map_err(|e| format!("执行 schtasks 失败: {}", e))?;
-            
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("创建计划任务失败: {}", stderr));
-        }
+        schtasks::create_task()
+    } else {
+        schtasks::delete_task()
     }
-    
-    Ok(())
 }
 
 // 保存配置到文件
@@ -308,13 +350,20 @@ fn save_config(app: AppHandle, state: State<AppState>) -> Result<(), String> {
 // 新增命令，用于切换主窗口的显示和隐藏
 #[tauri::command]
 fn toggle_main_window(app: AppHandle) {
+    tracing::info!("toggle_main_window 被调用");
     if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
+        let is_visible = window.is_visible().unwrap_or(false);
+        tracing::info!("  窗口存在，当前可见状态: {}", is_visible);
+        if is_visible {
+            tracing::info!("  执行: hide()");
             let _ = window.hide();
         } else {
+            tracing::info!("  执行: show() + set_focus()");
             let _ = window.show();
             let _ = window.set_focus();
         }
+    } else {
+        tracing::warn!("  窗口不存在! (main window not found)");
     }
 }
 
@@ -449,66 +498,177 @@ struct FormattedPorts {
 #[derive(Default)]
 pub struct OSCBridge(pub Mutex<Option<()>>);
 
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt::init(); // 初始化日志系统
+    // 初始化日志系统 (Robust Hybrid Strategy)
+    // 策略：
+    // 1. 优先尝试在 exe 同级目录创建 `logs` (满足用户偏好)
+    // 2. 如果失败 (权限不足)，回退到 AppData/logs (标准做法)
+    // 3. 再次失败，回退到 Temp 目录 (最后防线)
+    // 4. 绝不 Panic
+    
+    let now = std::time::SystemTime::now();
+    let datetime = now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let secs = datetime.as_secs();
+    let days_since_epoch = secs / 86400;
+    let time_of_day = secs % 86400;
+    
+    // Fix: Calculate day_of_year (approximate)
+    let day_of_year = days_since_epoch % 365;
+    let years_approx = 1970 + (days_since_epoch / 365);
+    
+    let month_approx = ((day_of_year / 30) + 1).min(12);
+    let day_approx = ((day_of_year % 30) + 1).min(31);
+    let hours = time_of_day / 3600;
+    let minutes = (time_of_day % 3600) / 60;
+    let seconds = time_of_day % 60;
+    
+    let log_filename = format!(
+        "osc-bridge_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}.log",
+        years_approx, month_approx, day_approx, hours, minutes, seconds
+    );
+
+    // 定义尝试路径的闭包
+    let try_create_log = |dir: std::path::PathBuf| -> Option<(std::fs::File, std::path::PathBuf)> {
+        let log_dir = dir.join("logs");
+        if let Err(e) = std::fs::create_dir_all(&log_dir) {
+            eprintln!("无法创建日志目录 {:?}: {}", log_dir, e);
+            return None;
+        }
+        let log_path = log_dir.join(&log_filename);
+        match std::fs::File::create(&log_path) {
+            Ok(f) => Some((f, log_path)),
+            Err(e) => {
+                eprintln!("无法创建日志文件 {:?}: {}", log_path, e);
+                None
+            }
+        }
+    };
+
+    // 1. 尝试 EXE 目录
+    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let (file, final_path) = if let Some(dir) = exe_dir.clone().and_then(|d| try_create_log(d)) {
+        dir
+    } else {
+        // 2. 尝试 AppData 目录
+        // 由于此时 tauri app 还没构建，我们需要手动构造 AppData 路径
+        // 或者简单点，使用 dirs crate (如果没引入的话，就得用 temp)
+        // 既然我们引入了 `dirs` crate (在 lib.rs 顶部没看到引入? 检查下)
+        // 假设没有 `dirs` crate，我们用 Temp 作为可靠回退
+        // 更好的是用 `directories` crate，但不想引入新依赖。 
+        // 实际上 tauri app handle 可以给路径，但这里还拿不到 app handle。
+        // 所以我们用 std::env::temp_dir() 作为最强回退，或者尝试构造 LOCALAPPDATA
+        
+        // 尝试获取 %APPDATA%
+        let app_data = std::env::var_os("APPDATA").map(std::path::PathBuf::from)
+            .or_else(|| std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from));
+            
+        let fallback_dir = app_data.map(|p| p.join("OSC-Bridge")).unwrap_or_else(std::env::temp_dir);
+        
+        eprintln!("Exe目录写日志失败，尝试回退到: {:?}", fallback_dir);
+        
+        if let Some(res) = try_create_log(fallback_dir.clone()) {
+            res
+        } else {
+             // 3. 最终回退：Temp
+             let temp = std::env::temp_dir();
+             eprintln!("AppData写日志失败，最终回退到 Temp: {:?}", temp);
+             if let Some(res) = try_create_log(temp) {
+                 res
+             } else {
+                 // 4. 彻底失败：Null
+                 eprintln!("日志系统彻底初始化失败，禁用日志文件。");
+                 (std::fs::File::create("NUL").unwrap_or_else(|_| std::fs::File::create("/dev/null").unwrap()), std::path::PathBuf::from("NUL"))
+             }
+        }
+    };
+    
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file);
+
+    tracing_subscriber::fmt()
+        .with_writer(non_blocking)
+        .with_ansi(false)
+        .with_target(false)
+        .with_thread_ids(true)
+        .with_level(true)
+        .with_file(true)
+        .with_line_number(true)
+        .init();
+
+    tracing::info!("OSC Bridge 启动中... 版本: 2.1.7");
+    tracing::info!("日志已写入: {:?}", final_path);
+    // 只有当回退发生时，且原定目录存在，才警告
+    if let Some(ed) = exe_dir {
+        if !final_path.starts_with(&ed) {
+             tracing::warn!("注意：由于权限不足，日志未能写入程序目录，已重定向至安全位置。");
+        }
+    }
 
     use tauri::{
         menu::{Menu, MenuItem},
         tray::TrayIconBuilder,
     };
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        // Single-instance: prevent multiple app instances and focus existing window
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            tracing::info!("检测到重复实例启动，聚焦现有窗口");
+            // Try to show and focus the existing main window
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .setup(|app| {
-            let window = app.get_webview_window("main").unwrap();
+            tracing::info!("进入 setup 闭包");
             
-            // 获取缩放因子
-            let scale_factor = window.scale_factor().unwrap_or(1.0);
-            app.manage(StartupState {
-                scale_factor: Mutex::new(scale_factor),
-            });
-            
-            // 强制设置窗口尺寸和位置，以覆盖 tauri-plugin-store 的状态恢复
-            // 使用 LogicalSize 来确保在不同DPI的屏幕上表现一致
-            let _ = window.set_size(tauri::LogicalSize::new(900, 630));
-            let _ = window.center();
-
-            #[cfg(target_os = "windows")]
-            {
-                use window_vibrancy::apply_blur;
-                apply_blur(&window, Some((0, 0, 0, 0)))
-                    .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
-            }
-
-            // 1. 加载所有配置
+            // 1. 优先加载配置和状态，确保 IPC 随时可用
             let app_config = load_app_config(&app.handle());
             let bridge_config = load_bridge_config(&app.handle());
             println!("加载的OSC配置: {:?}", bridge_config);
-
-            // 3. 创建自启动实例
-            let args = if app_config.silent_start {
+            
+            let app_state = AppState {
+                app_config: Mutex::new(app_config.clone()),
+                bridge_config: Mutex::new(bridge_config.clone()),
+                #[cfg(target_os = "macos")]
+                auto_launch: Mutex::new(None), // 临时占位，稍后初始化
+                is_exiting: Mutex::new(false),
+            };
+            app.manage(StartupState {
+                scale_factor: Mutex::new(1.0), // 默认值，窗口创建后更新
+            });
+            app.manage(app_state);
+            
+            // 2. 初始化自启动逻辑 (AutoLaunch)
+             let args = if app_config.silent_start {
                 vec!["--silent"]
             } else {
                 vec![]
             };
             
             #[cfg(target_os = "macos")]
-            let auto_launch = AutoLaunch::new(
-                "OSC-Bridge",
-                &std::env::current_exe().unwrap().to_string_lossy(),
-                true, // 在macOS上使用Launch Agent
-                &args,
-            );
+            {
+                let auto_launch = AutoLaunch::new(
+                    "OSC-Bridge",
+                    &std::env::current_exe().unwrap().to_string_lossy(),
+                    true,
+                    &args,
+                );
+                let state = app.state::<AppState>();
+                *state.auto_launch.lock().unwrap() = Some(auto_launch);
+                // 这里省略多余的 enable/disable 调用，保持之前的逻辑
+            }
 
-            // 自动修复逻辑：
-            // 1. 尝试清理旧的 "OSC Bridge" (带空格) 启动项，防止冲突
+             // 自动修复逻辑：清理旧的 "OSC Bridge" 启动项
             #[cfg(not(target_os = "macos"))]
             {
-                // 仅当能成功初始化时才尝试禁用
                 let legacy_launch = AutoLaunch::new(
                     "OSC Bridge", 
                     &std::env::current_exe().unwrap_or_default().to_string_lossy(),
@@ -516,8 +676,8 @@ pub fn run() {
                 );
                 let _ = legacy_launch.disable();
             }
-
-            // 2. 如果配置为自启动，强制刷新任务
+            
+            // 如果配置为自启动，强制刷新任务
             if app_config.auto_start {
                 #[cfg(target_os = "windows")]
                 {
@@ -525,149 +685,127 @@ pub fn run() {
                         eprintln!("启动时同步Windows任务计划失败: {}", e);
                     }
                 }
-                #[cfg(target_os = "macos")]
-                {
-                    if let Err(e) = auto_launch.enable() {
-                        eprintln!("启动时同步自启动注册表失败: {}", e);
-                    }
-                }
             }
-            
-            // 4. 初始化应用状态
-            let app_state = AppState {
-                app_config: Mutex::new(app_config.clone()),
-                bridge_config: Mutex::new(bridge_config.clone()),
-                #[cfg(target_os = "macos")]
-                auto_launch: Mutex::new(Some(auto_launch)),
-            };
-            app.manage(app_state);
-            
-            // 2. 在后台启动桥接服务 (必须在 app.manage 之后)
+
+            // 3. 在后台启动桥接服务
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 bridge::run_bridge(app_handle).await;
             });
             
-            // 5. 根据配置或参数决定是否隐藏窗口
-            let cli_args: Vec<String> = std::env::args().collect();
-            let should_hide = app_config.silent_start || cli_args.contains(&"--silent".to_string());
+            // 4. [关键修复] 异步初始化窗口 (Clash Verge Rev 风格)
+            // 此时 setup 会立即返回，主线程不会卡死
+            // 我们完全信任 XML 任务计划配置的 InteractiveToken，不需要 wait_for_desktop
+            let handle_for_window = app.handle().clone();
             
-            if should_hide {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
-                }
-            }
+            tauri::async_runtime::spawn(async move {
+                // 读取配置
+                let state = handle_for_window.state::<AppState>();
+                let config = match state.app_config.lock() {
+                    Ok(guard) => guard.clone(),
+                    Err(_) => AppConfig::default(),
+                };
+                let cli_args: Vec<String> = std::env::args().collect();
+                let is_silent_mode = config.silent_start || cli_args.contains(&"--silent".to_string());
+                
+                // 必须在主线程创建窗口
+                let app_handle_for_closure = handle_for_window.clone();
+                let _ = handle_for_window.run_on_main_thread(move || {
+                   let app = app_handle_for_closure;
+                   tracing::info!("主线程回调：根据配置初始化窗口 (is_silent={})", is_silent_mode);
+                   if is_silent_mode {
+                       // 静默启动：直接创建隐藏的主窗口
+                       if let Err(e) = create_main_window(&app, false) {
+                           tracing::error!("创建主窗口失败: {}", e);
+                       }
+                   } else {
+                       // 正常启动：先创建 Splash，再创建隐藏的主窗口
+                       if let Err(e) = create_splash_window(&app) {
+                           tracing::error!("创建 Splash 窗口失败: {}", e);
+                       }
+                       // 创建主窗口但保持隐藏，等待前端 app_ready 信号
+                       if let Err(e) = create_main_window(&app, false) {
+                           tracing::error!("创建主窗口失败: {}", e);
+                       }
+                   }
+                });
+            });
             
-            // 创建托盘菜单项
+            // 5. 创建系统托盘 (保证第一时间可见)
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let show_item = MenuItem::with_id(app, "show", "显示/隐藏", true, None::<&str>)?;
-            
-            // 分隔线
-            use tauri::menu::PredefinedMenuItem;
-            let separator1 = PredefinedMenuItem::separator(app)?;
-            let separator2 = PredefinedMenuItem::separator(app)?;
-            
-            // 配置菜单项（带复选框）
+            let separator1 = tauri::menu::PredefinedMenuItem::separator(app)?;
+            let separator2 = tauri::menu::PredefinedMenuItem::separator(app)?;
             let auto_start_item = MenuItem::with_id(app, "auto_start", "开机自启", true, None::<&str>)?;
             let silent_start_item = MenuItem::with_id(app, "silent_start", "静默启动", true, None::<&str>)?;
             
-            // 构建托盘菜单
             let menu = Menu::with_items(app, &[
-                &show_item, 
-                &separator1,
-                &auto_start_item,
-                &silent_start_item,
-                &separator2,
-                &quit_item
+                &show_item, &separator1, &auto_start_item, &silent_start_item, &separator2, &quit_item
             ])?;
             
-            // 创建托盘图标
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| {
                     let app_state = app.state::<AppState>();
-                    
                     match event.id.as_ref() {
                         "quit" => {
-                            // 不再需要清理后端进程
-                            app.exit(0);
-                        }
-                        "show" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                if window.is_visible().unwrap_or(false) {
-                                    let _ = window.hide();
-                                } else {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
+                            // [关键修复] 用户主动退出
+                            if let Ok(mut exiting) = app_state.is_exiting.lock() {
+                                *exiting = true;
                             }
-                        }
+                            app.exit(0);
+                        },
+                        "show" => toggle_main_window(app.clone()), // 复用命令逻辑
                         "auto_start" => {
-                            if let Ok(config) = app_state.app_config.lock() {
+                            // 简化逻辑，直接调用 existing commands 如果可能，或者复制逻辑
+                             if let Ok(config) = app_state.app_config.lock() {
                                 let new_state = !config.auto_start;
                                 drop(config);
-                                
-                                if let Err(e) = set_auto_start(new_state, app_state.clone()) {
-                                    eprintln!("设置自启动失败: {}", e);
-                                } else {
-                                    let _ = save_config(app.clone(), app_state.clone());
-                                    update_tray_menu(app);
-                                }
+                                if let Err(e) = set_auto_start(new_state, app_state.clone()) { eprintln!("{}", e); }
+                                else { let _ = save_config(app.clone(), app_state.clone()); update_tray_menu(app); }
                             }
-                        }
+                        },
                         "silent_start" => {
-                            if let Ok(config) = app_state.app_config.lock() {
+                             if let Ok(config) = app_state.app_config.lock() {
                                 let new_state = !config.silent_start;
                                 drop(config);
-                                
-                                if let Err(e) = set_silent_start(new_state, app_state.clone()) {
-                                    eprintln!("设置静默启动失败: {}", e);
-                                } else {
-                                    let _ = save_config(app.clone(), app_state.clone());
-                                    update_tray_menu(app);
-                                }
+                                if let Err(e) = set_silent_start(new_state, app_state.clone()) { eprintln!("{}", e); }
+                                else { let _ = save_config(app.clone(), app_state.clone()); update_tray_menu(app); }
                             }
-                        }
+                        },
                         _ => {}
                     }
                 })
                 .on_tray_icon_event(|tray, event| {
-                    match event {
-                        tauri::tray::TrayIconEvent::Click { 
-                            button: tauri::tray::MouseButton::Left,
-                            button_state: tauri::tray::MouseButtonState::Up,
-                            ..
-                        } => {
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                if window.is_visible().unwrap_or(false) {
-                                    let _ = window.hide();
-                                } else {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
-                            }
-                        }
-                        tauri::tray::TrayIconEvent::Click { 
-                            button: tauri::tray::MouseButton::Right,
-                            button_state: tauri::tray::MouseButtonState::Up,
-                            ..
-                        } => {
-                        }
-                        _ => {}
-                    }
+                     // 关键：必须过滤 MouseButtonState::Up，否则按下和弹起都会触发，导致双击问题
+                     if let tauri::tray::TrayIconEvent::Click { 
+                         button: tauri::tray::MouseButton::Left, 
+                         button_state: tauri::tray::MouseButtonState::Up,
+                         ..
+                     } = event {
+                         tracing::info!("[托盘事件] 左键弹起，调用 toggle_main_window");
+                         toggle_main_window(tray.app_handle().clone());
+                     }
                 })
                 .build(app)?;
-            
-            // 初始化托盘菜单状态
+                
             update_tray_menu(&app.handle());
-            
+
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // 如果正在退出，不要拦截关闭事件
+                let app_state = window.app_handle().state::<AppState>();
+                if let Ok(exiting) = app_state.is_exiting.lock() {
+                    if *exiting {
+                        return;
+                    }
+                }
+                
+                tracing::info!("[窗口事件] CloseRequested for window '{}'，执行 hide() 并阻止关闭", window.label());
                 window.hide().unwrap();
                 api.prevent_close();
             }
@@ -681,8 +819,44 @@ pub fn run() {
             set_silent_start,
             save_config,
             save_bridge_config,
-            toggle_main_window
+            toggle_main_window,
+            app_ready
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::ExitRequested { api, .. } => {
+            // [关键修复] 检查是否是用户主动退出
+            let state = app_handle.state::<AppState>();
+            if let Ok(exiting) = state.is_exiting.lock() {
+                if *exiting {
+                    // 用户点了退出菜单，允许退出
+                    return;
+                }
+            }
+            
+            // 否则（例如关闭所有窗口导致的），阻止退出
+            // 只有显式调用 app.exit() 且设置了标志时才会真正通过
+            api.prevent_exit();
+        }
+        tauri::RunEvent::WindowEvent { label, event, .. } => {
+            if label == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                     // 如果正在退出，不要拦截
+                    let state = app_handle.state::<AppState>();
+                    if let Ok(exiting) = state.is_exiting.lock() {
+                        if *exiting {
+                            return;
+                        }
+                    }
+                    
+                    let window = app_handle.get_webview_window("main").unwrap();
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+            }
+        }
+        _ => {}
+    });
 }

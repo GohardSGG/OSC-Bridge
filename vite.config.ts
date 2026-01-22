@@ -11,7 +11,7 @@ export default defineConfig(async () => ({
   plugins: [svelte({ configFile: './svelte.config.js' })],
 
   build: {
-    outDir: 'Build',
+    outDir: 'Build/Frontend',
   },
 
   resolve: {

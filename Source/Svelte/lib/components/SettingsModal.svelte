@@ -63,14 +63,31 @@
    const toggleLanguage = () => {
       locale.update((l) => (l === "en" ? "zh-CN" : "en"));
    };
+
+   // --- Animation Logic ---
+   let renderModal = false;
+   let isClosing = false;
+
+   $: {
+      if ($isSettingsOpen) {
+         renderModal = true;
+         isClosing = false;
+      } else if (renderModal && !isClosing) {
+         isClosing = true;
+         setTimeout(() => {
+            renderModal = false;
+            isClosing = false;
+         }, 140); // Slightly shorter than CSS time to ensure clean removal
+      }
+   }
 </script>
 
-{#if $isSettingsOpen}
+{#if renderModal}
    <div
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      class="settings-backdrop fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm {isClosing ? 'closing' : ''}"
    >
       <div
-         class="w-80 transform scale-90 border-2 shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-100 {modalBg}"
+         class="settings-modal w-80 transform scale-90 border-2 shadow-2xl flex flex-col {modalBg} {isClosing ? 'closing' : ''}"
       >
          <!-- Modal Header -->
          <div
@@ -236,3 +253,54 @@
       </div>
    </div>
 {/if}
+
+<style>
+   /* Pure CSS fade animation - bypasses Svelte's insertRule mechanism */
+   .settings-backdrop {
+      animation: fade-in 150ms ease-out forwards;
+   }
+   
+   .settings-backdrop.closing {
+      animation: fade-out 150ms ease-in forwards;
+   }
+
+   .settings-modal {
+      animation: zoom-in 150ms ease-out forwards;
+   }
+
+   .settings-modal.closing {
+      animation: zoom-out 150ms ease-in forwards;
+   }
+
+   @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+   }
+   
+   @keyframes fade-out {
+      from { opacity: 1; }
+      to { opacity: 0; }
+   }
+
+   @keyframes zoom-in {
+      from {
+         opacity: 0;
+         transform: scale(0.95);
+      }
+      to {
+         opacity: 1;
+         transform: scale(0.9);
+      }
+   }
+
+   @keyframes zoom-out {
+      from {
+         opacity: 1;
+         transform: scale(0.9);
+      }
+      to {
+         opacity: 0;
+         transform: scale(0.95);
+      }
+   }
+</style>

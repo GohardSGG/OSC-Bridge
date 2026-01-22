@@ -1,4 +1,11 @@
 !macro customInstall
+  ; [CRITICAL] Grant Write/Modify permissions to "Users" group for the installation directory.
+  ; This allows the application to write logs/configs locally even when launched as a Standard User
+  ; (e.g. via the "Launch" checkbox at the end of installation).
+  ; (OI)(CI) = Object Inherit, Container Inherit (applies to subfiles/folders)
+  ; M = Modify access
+  ExecWait 'icacls "$INSTDIR" /grant Users:(OI)(CI)M'
+
   ; Logic to handle config file
   ; Check if user's config.json exists
   IfFileExists "$INSTDIR\config.json" config_exists config_missing
