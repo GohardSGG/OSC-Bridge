@@ -1,33 +1,41 @@
 {
     "topbar": {
         "online": "ONLINE",
-        "listening_ports": "Listening Ports",
-        "forwarding_targets": "Forwarding Targets",
+        "listening_ports": "Source",
+        "forwarding_targets": "Target",
         "toggle_theme": "Toggle Night Vision",
         "always_on_top": "Always on Top",
         "settings": "Settings",
+        "minimize": "Minimize",
         "close": "Close"
     },
     "traffic_monitor": {
         "title": "Traffic Monitor",
+        "search": "Search ......",
         "filter_logs": "FILTER LOGS...",
         "auto_scroll": "Auto Scroll",
         "outgoing": "Outgoing (TX)",
-        "incoming": "Incoming (RX)"
+        "incoming": "Incoming (RX)",
+        "double_click_clear": "Double click to clear",
+        "clear_all": "Clear All"
     },
     "left_panel": {
         "injector_title": "INJECTOR",
         "address": "Address",
         "args": "Args",
         "send": "SEND",
+        "send_tooltip": "Send {args} to {address}",
         "system_title": "SYSTEM"
     },
     "settings": {
         "title": "System Config",
-        "ws_host": "WebSocket Host",
-        "listening_ports": "Listening Ports",
-        "add_port": "Add Port",
-        "forwarding_targets": "Forwarding Targets",
+        "system": "System",
+        "auto_start": "Auto Start",
+        "silent_start": "Silent Start",
+        "ws_host": "WebSocket Server Port",
+        "listening_ports": "Source",
+        "add_port": "Add Source",
+        "forwarding_targets": "Target",
         "add_target": "Add Target",
         "ui_scale": "UI Scale"
     },
@@ -37,12 +45,19 @@
         "disconnected": "⚠️ WebSocket disconnected, retrying in 5s...",
         "error": "❌ WebSocket connection error: {error}",
         "parse_error": "❌ Failed to parse backend message: {error}",
-        "client_connected": "🔌 Client #{clientId} connected ({clientType} - {remoteAddr})",
+        "client_connected": "🔌 Client #{clientId} connected [{clientType} @ {remoteAddr}]",
         "client_disconnected": "🔌 Client #{clientId} disconnected.",
         "config_loaded": "🚀 Initial configuration loaded from backend.",
+        "scale_factor_loaded_from_store": "📱 Loaded UI scale from local store: {factor}",
+        "scale_factor_loaded_from_backend": "🔧 Fetched initial scale from backend: {factor}",
+        "config_saved": "💾 Configuration saved successfully!",
+        "config_save_error": "❌ Failed to save config: {error}",
         "tray_config_loaded": "📋 Tray config: Auto-start {autoStart}, Silent-start {silentStart}",
         "config_load_error": "❌ Failed to load initial config: {error}",
         "tray_config_load_error": "❌ Failed to load tray config: {error}",
+        "websocket_not_connected": "⚠️ WebSocket not connected.",
+        "osc_address_empty": "⚠️ OSC Address cannot be empty.",
+        "osc_send_error": "❌ Failed to send: {error}",
         "unknown_backend_msg": "Backend (Unknown type '{type}'): {data}"
     }
 }

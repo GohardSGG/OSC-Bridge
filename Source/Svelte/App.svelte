@@ -39,7 +39,7 @@
   </div>
 {:else}
   <div
-    class="h-screen w-screen font-sans flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} border-[3px] border-zinc-800"
+    class="h-screen w-screen font-sans flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} border-l-[3px] border-t-[3px] border-r-[4px] border-b-[4px] border-zinc-800"
   >
     <SettingsModal />
 

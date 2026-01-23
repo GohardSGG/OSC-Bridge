@@ -139,15 +139,15 @@
 
     $: titleText = $isDarkMode ? "text-slate-300" : "text-slate-800";
     $: searchInputBg = $isDarkMode
-        ? "bg-[#09090b] border-slate-700 focus:bg-[#18181b] text-slate-300"
-        : "bg-slate-50 border-slate-200 focus:bg-white text-slate-800";
+        ? "bg-[#09090b] border-slate-700 focus:bg-[#09090b] text-slate-200 hover:border-slate-600 placeholder:text-slate-700"
+        : "bg-white border-slate-300 focus:bg-white text-slate-800 hover:border-slate-400 placeholder:text-slate-300";
     $: scrollBtnBg = $isDarkMode
         ? $isAutoScroll
-            ? "bg-slate-700 text-white"
-            : "bg-slate-900 text-slate-500"
+            ? "bg-slate-700 text-white shadow-sm hover:bg-slate-600"
+            : "bg-[#27272a] text-slate-400 hover:bg-slate-800"
         : $isAutoScroll
-          ? "bg-slate-800 text-white"
-          : "bg-slate-100 text-slate-500";
+          ? "bg-slate-800 text-white shadow-sm hover:bg-slate-700"
+          : "bg-slate-200 text-slate-600 hover:bg-slate-300";
 </script>
 
 <div class="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
@@ -157,25 +157,37 @@
             ? 'bg-[#1e1e22] border-slate-800'
             : 'bg-white border-slate-300'}"
     >
-        <div class="flex items-center gap-3 flex-1">
-            <Activity
-                size={14}
-                class={$isDarkMode ? "text-slate-500" : "text-slate-700"}
-            />
-            <span
-                class="text-xs font-black uppercase tracking-wide whitespace-nowrap {titleText}"
+        <div class="flex items-center gap-2 flex-1 group cursor-default">
+            <div class="flex items-center gap-2 -mt-[2px]">
+                <div
+                    class="transition-transform duration-300 group-hover:scale-110 group-hover:text-emerald-400"
+                >
+                    <Activity
+                        size={14}
+                        class={$isDarkMode
+                            ? "text-slate-500"
+                            : "text-slate-700"}
+                    />
+                </div>
+                <span
+                    class="text-xs font-black uppercase tracking-wide whitespace-nowrap transition-all duration-300 {titleText}"
+                >
+                    {$t("traffic_monitor.title")}
+                </span>
+            </div>
+            <div
+                class="relative group/search flex-1 max-w-[150px] ml-2 -mt-[2px] transition-transform duration-200 focus-within:scale-[1.02] focus-within:z-10 origin-center"
             >
-                {$t("traffic_monitor.title")}
-            </span>
-            <div class="relative group flex-1 max-w-[200px]">
                 <Search
                     size={10}
-                    class="absolute left-2 top-0 bottom-0 my-auto text-slate-500"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 mt-[1px] text-slate-500 transition-colors group-focus-within/search:text-emerald-400 z-20"
                 />
                 <input
                     bind:value={$sentSearchTerm}
-                    class="h-6 w-full border pl-6 pr-2 text-[10px] font-mono transition-all outline-none rounded-sm placeholder:text-slate-600 {searchInputBg}"
-                    placeholder={$t("traffic_monitor.filter_logs")}
+                    class="h-6 w-full border-2 pl-5 pr-2 text-[9px] font-sans transition-all duration-200 outline-none rounded-sm placeholder:text-slate-600
+                    focus:shadow-md focus:border-emerald-500/50
+                    {searchInputBg}"
+                    placeholder={$t("traffic_monitor.search")}
                 />
             </div>
         </div>
@@ -183,10 +195,12 @@
         <div class="flex items-center gap-2">
             <button
                 on:click={toggleAutoScroll}
-                class="h-6 flex items-center gap-1.5 px-2 rounded-sm text-[9px] font-bold uppercase transition-all {scrollBtnBg}"
+                class="h-6 flex items-center gap-1.5 px-2 rounded-sm text-[9px] font-semibold uppercase antialiased transition-colors duration-200 {scrollBtnBg}"
             >
                 {#if $isAutoScroll}
-                    <PlayCircle size={10} />
+                    <div class="text-emerald-400">
+                        <PlayCircle size={10} />
+                    </div>
                 {:else}
                     <PauseCircle size={10} />
                 {/if}
@@ -199,17 +213,22 @@
                     : 'bg-slate-200'}"
             ></div>
 
-            <button
-                on:click={() => {
-                    oscSentLogs.set([]);
-                    oscRecvLogs.set([]);
-                }}
-                class="h-6 w-6 flex items-center justify-center rounded-sm transition-colors {$isDarkMode
-                    ? 'text-slate-600 hover:bg-rose-900/20 hover:text-rose-500'
-                    : 'hover:bg-red-50 hover:text-red-500 text-slate-400'}"
+            <div
+                class="transition-transform duration-200 hover:rotate-12 hover:scale-110 active:scale-95"
             >
-                <Trash2 size={12} />
-            </button>
+                <button
+                    on:click={() => {
+                        oscSentLogs.set([]);
+                        oscRecvLogs.set([]);
+                    }}
+                    title={$t("traffic_monitor.clear_all")}
+                    class="h-6 w-6 flex items-center justify-center rounded-sm transition-colors {$isDarkMode
+                        ? 'text-slate-600 hover:bg-rose-900/20 hover:text-rose-500'
+                        : 'hover:bg-red-50 hover:text-red-500 text-slate-400'}"
+                >
+                    <Trash2 size={12} />
+                </button>
+            </div>
         </div>
     </div>
 
@@ -230,6 +249,8 @@
                 icon={ArrowUpRight}
                 count={$filteredSentLogs.length}
                 isDark={$isDarkMode}
+                title={$t("traffic_monitor.double_click_clear")}
+                on:dblclick={() => oscSentLogs.set([])}
             />
 
             <div bind:this={txLogContainer} class="flex-1 overflow-y-auto p-0">
@@ -267,6 +288,8 @@
                 icon={ArrowDownLeft}
                 count={$filteredRecvLogs.length}
                 isDark={$isDarkMode}
+                title={$t("traffic_monitor.double_click_clear")}
+                on:dblclick={() => oscRecvLogs.set([])}
             />
 
             <div bind:this={rxLogContainer} class="flex-1 overflow-y-auto p-0">

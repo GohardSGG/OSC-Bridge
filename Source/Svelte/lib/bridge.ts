@@ -12,6 +12,7 @@ import {
   silentStartEnabled,
   uiScale
 } from './stores/stores';
+import { listen } from '@tauri-apps/api/event';
 
 let websocket: WebSocket | null = null;
 let logIdCounter = 0;
@@ -87,6 +88,14 @@ export function initializeBridge(customUrl?: string) {
   websocket.onerror = (error) => {
     addSystemLog('error', 'logs.error', { error });
   };
+
+  // Listen for Tray Config Updates
+  listen("tray_config_update", (event: any) => {
+    const config = event.payload;
+    console.log("Config updated from Tray:", config);
+    autoStartEnabled.set(config.auto_start);
+    silentStartEnabled.set(config.silent_start);
+  });
 }
 
 function handleBackendMessage(payload: any) {
@@ -262,5 +271,28 @@ export async function loadTrayConfig() {
     addSystemLog('info', 'logs.tray_config_loaded', { autoStart: trayConfig.auto_start ? 'enabled' : 'disabled', silentStart: trayConfig.silent_start ? 'enabled' : 'disabled' });
   } catch (error) {
     addSystemLog('error', 'logs.tray_config_load_error', { error });
+  }
+}
+
+
+export async function setAutoStart(enabled: boolean) {
+  autoStartEnabled.set(enabled); // Optimistic UI update
+  try {
+    await invoke('set_auto_start', { enabled });
+    // The backend saves config automatically
+  } catch (e) {
+    console.error("Failed to set auto start", e);
+    // Revert on failure?
+    loadTrayConfig();
+  }
+}
+
+export async function setSilentStart(enabled: boolean) {
+  silentStartEnabled.set(enabled); // Optimistic UI update
+  try {
+    await invoke('set_silent_start', { enabled });
+  } catch (e) {
+    console.error("Failed to set silent start", e);
+    loadTrayConfig();
   }
 }

@@ -52,7 +52,7 @@
     : 'bg-slate-800 border-slate-900'}"
 >
   <div
-    class="flex items-center gap-4 text-[10px] font-mono text-slate-400"
+    class="flex items-center gap-4 text-[10px] font-sans text-slate-400"
     data-tauri-drag-region
   >
     <div

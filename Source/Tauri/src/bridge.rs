@@ -3,12 +3,14 @@ use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
+        ConnectInfo,
     },
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
+use std::net::SocketAddr;
 use rosc::{OscType};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
@@ -139,8 +141,8 @@ async fn start_ws_server(state: Arc<BridgeState>) {
     
     // 关键修复：定义两个独立的路由，并正确地调用 ws_handler
     let app = Router::new()
-        .route("/", get(|ws, state, headers| ws_handler(ws, state, headers, ClientType::OscClient)))
-        .route("/logs", get(|ws, state, headers| ws_handler(ws, state, headers, ClientType::Frontend)))
+        .route("/", get(|ws, state, ci, headers| ws_handler(ws, state, ci, headers, ClientType::OscClient)))
+        .route("/logs", get(|ws, state, ci, headers| ws_handler(ws, state, ci, headers, ClientType::Frontend)))
         .route("/config", get(get_config_handler))
         .route("/save-config", post(save_config_handler))
         .route("/reload-config", post(reload_config_handler))
@@ -180,7 +182,11 @@ async fn start_ws_server(state: Arc<BridgeState>) {
     info!("Successfully listening on: {}", listen_addr);
 
     // 服务器将一直运行，除非主应用关闭
-    if let Err(e) = axum::serve(listener, app.into_make_service()).await {
+    // 使用 with_connect_info 以获取客户端 IP
+    if let Err(e) = axum::serve(
+        listener, 
+        app.into_make_service_with_connect_info::<SocketAddr>()
+    ).await {
         error!("WebSocket server shut down with an error: {}", e);
     }
 }
@@ -290,25 +296,27 @@ async fn start_udp_services(state: Arc<BridgeState>, config: BridgeConfig, token
 async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<BridgeState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     _headers: HeaderMap,
     client_type: ClientType,
 ) -> impl IntoResponse {
-    info!(client_type = ?client_type, "WebSocket client trying to connect");
-    ws.on_upgrade(move |socket| handle_socket(socket, state, client_type))
+    info!(client_type = ?client_type, remote_addr = %addr, "WebSocket client trying to connect");
+    ws.on_upgrade(move |socket| handle_socket(socket, state, client_type, addr))
 }
 
 /// 处理单个WebSocket连接的生命周期
-async fn handle_socket(mut socket: WebSocket, state: Arc<BridgeState>, client_type: ClientType) {
+async fn handle_socket(mut socket: WebSocket, state: Arc<BridgeState>, client_type: ClientType, remote_addr: SocketAddr) {
     let client_id = NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
     let client_id_str = format!("WS #{}", client_id);
     let client_type_str = format!("{:?}", client_type);
+    let remote_addr_str = remote_addr.to_string();
 
-    info!(client_id = %client_id_str, client_type = %client_type_str, "New client connected");
+    info!(client_id = %client_id_str, client_type = %client_type_str, remote_addr = %remote_addr_str, "New client connected");
     
     let connect_event = FrontendLog::ClientConnected {
         client_id: client_id_str.clone(),
         client_type: client_type_str.clone(),
-        remote_addr: "".to_string(),
+        remote_addr: remote_addr_str,
     };
     if let Ok(json) = serde_json::to_string(&connect_event) {
         let _ = state.log_tx.send(json);

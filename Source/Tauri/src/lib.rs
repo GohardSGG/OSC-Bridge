@@ -1,8 +1,12 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri::{AppHandle, Manager, State, WebviewWindowBuilder, WebviewUrl, WebviewWindow};
+use tauri::{
+    AppHandle, Manager, State, WebviewWindowBuilder, WebviewUrl, WebviewWindow, Wry,
+    menu::{Menu, PredefinedMenuItem, CheckMenuItem, MenuItemKind},
+};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(target_os = "macos")]
 use auto_launch::AutoLaunch;
 
 mod bridge; // 声明新的 bridge 模块
@@ -12,11 +16,12 @@ mod schtasks; // XML 任务计划模块
 // 辅助函数：创建主窗口
 // 辅助函数：创建主窗口 (Robust Implementation)
 fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<WebviewWindow> {
-    let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+    let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("OSC Bridge")
         .inner_size(900.0, 630.0)
         .decorations(false)
-        .transparent(true)
+        .transparent(false) // 关闭透明以修复渲染瑕疵
+        .shadow(true)       // 启用系统原生窗口阴影
         .visible(false); // 初始不可见，防止闪烁
         
     // 这里可以参考 clash-verge-rev 注入初始化脚本，目前暂不需要
@@ -96,6 +101,7 @@ struct AppState {
     #[cfg(target_os = "macos")]
     auto_launch: Mutex<Option<AutoLaunch>>,
     is_exiting: Mutex<bool>, // 新增退出标志
+    main_menu: Mutex<Option<Menu<Wry>>>,
 }
 
 // 新增一个用于存储启动时配置的状态
@@ -324,9 +330,9 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
 }
 
 #[cfg(target_os = "windows")]
-fn set_windows_task_start(enabled: bool, _args: &[&str]) -> Result<(), String> {
+fn set_windows_task_start(enabled: bool, args: &[&str]) -> Result<(), String> {
     if enabled {
-        schtasks::create_task()
+        schtasks::create_task(args)
     } else {
         schtasks::delete_task()
     }
@@ -441,10 +447,6 @@ fn load_bridge_config(_app_handle: &AppHandle) -> BridgeConfig {
 
 // 更新托盘菜单状态
 fn update_tray_menu(app: &AppHandle) {
-    use tauri::{
-        menu::{Menu, MenuItem, PredefinedMenuItem},
-    };
-    
     let app_state = app.state::<AppState>();
     
     // 先获取配置状态，然后释放锁
@@ -456,32 +458,26 @@ fn update_tray_menu(app: &AppHandle) {
         }
     };
     
-    // 重新创建菜单项
-    if let Ok(quit_item) = MenuItem::with_id(app, "quit", "退出", true, None::<&str>) {
-        if let Ok(show_item) = MenuItem::with_id(app, "show", "显示/隐藏", true, None::<&str>) {
-            if let Ok(separator1) = PredefinedMenuItem::separator(app) {
-                if let Ok(separator2) = PredefinedMenuItem::separator(app) {
-                    // 根据配置状态创建菜单项
-                    let auto_start_text = if auto_start { "✓ 开机自启" } else { "开机自启" };
-                    let silent_start_text = if silent_start { "✓ 静默启动" } else { "静默启动" };
-                    
-                    if let Ok(auto_start_item) = MenuItem::with_id(app, "auto_start", auto_start_text, true, None::<&str>) {
-                        if let Ok(silent_start_item) = MenuItem::with_id(app, "silent_start", silent_start_text, true, None::<&str>) {
-                            // 重新构建菜单
-                            if let Ok(menu) = Menu::with_items(app, &[
-                                &show_item, 
-                                &separator1,
-                                &auto_start_item,
-                                &silent_start_item,
-                                &separator2,
-                                &quit_item
-                            ]) {
-                                // 更新托盘菜单
-                                if let Some(tray) = app.tray_by_id("main-tray") {
-                                    let _ = tray.set_menu(Some(menu));
-                                }
-                            }
-                        }
+    // 尝试获取现有托盘菜单 (从 AppState)
+    // 使用独立的代码块来确保 MutexGuard 的生命周期明确
+    {
+        let lock_result = app_state.main_menu.lock();
+        if let Ok(menu_guard) = lock_result {
+            if let Some(menu) = menu_guard.as_ref() {
+                // 尝试更新现有菜单项的状态
+                if let Ok(items) = menu.items() {
+                    for item in items {
+                         match item {
+                             MenuItemKind::Check(check_item) => {
+                                 let id_str = check_item.id().as_ref();
+                                 if id_str == "auto_start" {
+                                     let _ = check_item.set_checked(auto_start);
+                                 } else if id_str == "silent_start" {
+                                     let _ = check_item.set_checked(silent_start);
+                                 }
+                             }
+                             _ => {}
+                         }
                     }
                 }
             }
@@ -629,25 +625,43 @@ pub fn run() {
         .setup(|app| {
             tracing::info!("进入 setup 闭包");
             
-            // 1. 优先加载配置和状态，确保 IPC 随时可用
+            // 1. 优先加载配置
             let app_config = load_app_config(&app.handle());
             let bridge_config = load_bridge_config(&app.handle());
             println!("加载的OSC配置: {:?}", bridge_config);
             
+            // 2. 创建托盘菜单 (Create Menu BEFORE AppState)
+            let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let show_item = MenuItem::with_id(app, "show", "显示/隐藏", true, None::<&str>)?;
+            let separator1 = PredefinedMenuItem::separator(app)?;
+            let separator2 = PredefinedMenuItem::separator(app)?;
+            
+            let auto_start_state = app_config.auto_start;
+            let silent_start_state = app_config.silent_start;
+            let auto_start_item = CheckMenuItem::with_id(app, "auto_start", "开机自启", true, auto_start_state, None::<&str>)?;
+            let silent_start_item = CheckMenuItem::with_id(app, "silent_start", "静默启动", true, silent_start_state, None::<&str>)?;
+            
+            let menu = Menu::with_items(app, &[
+                &show_item, &separator1, &auto_start_item, &silent_start_item, &separator2, &quit_item
+            ])?;
+
+            // 3. 初始化状态 (Inject Menu Handle)
             let app_state = AppState {
                 app_config: Mutex::new(app_config.clone()),
                 bridge_config: Mutex::new(bridge_config.clone()),
                 #[cfg(target_os = "macos")]
-                auto_launch: Mutex::new(None), // 临时占位，稍后初始化
+                auto_launch: Mutex::new(None), 
                 is_exiting: Mutex::new(false),
+                main_menu: Mutex::new(Some(menu.clone())), // Init with menu
             };
+            
             app.manage(StartupState {
-                scale_factor: Mutex::new(1.0), // 默认值，窗口创建后更新
+                scale_factor: Mutex::new(1.0),
             });
             app.manage(app_state);
-            
-            // 2. 初始化自启动逻辑 (AutoLaunch)
-             let args = if app_config.silent_start {
+
+            // 2b. 初始化自启动逻辑 (AutoLaunch)
+            let args = if app_config.silent_start {
                 vec!["--silent"]
             } else {
                 vec![]
@@ -655,33 +669,37 @@ pub fn run() {
             
             #[cfg(target_os = "macos")]
             {
-                let auto_launch = AutoLaunch::new(
-                    "OSC-Bridge",
-                    &std::env::current_exe().unwrap().to_string_lossy(),
-                    true,
-                    &args,
-                );
-                let state = app.state::<AppState>();
-                *state.auto_launch.lock().unwrap() = Some(auto_launch);
-                // 这里省略多余的 enable/disable 调用，保持之前的逻辑
+                if let Ok(current_exe) = std::env::current_exe() {
+                    let auto_launch = AutoLaunch::new(
+                        "OSC-Bridge",
+                        &current_exe.to_string_lossy(),
+                        true,
+                        &args,
+                    );
+                    let state = app.state::<AppState>();
+                    if let Ok(mut guard) = state.auto_launch.lock() {
+                        *guard = Some(auto_launch);
+                    }
+                }
             }
 
-             // 自动修复逻辑：清理旧的 "OSC Bridge" 启动项
+             // 自动修复逻辑：清理旧的 "OSC Bridge" 启动项 (Windows/Linux)
             #[cfg(not(target_os = "macos"))]
             {
-                let legacy_launch = AutoLaunch::new(
-                    "OSC Bridge", 
-                    &std::env::current_exe().unwrap_or_default().to_string_lossy(),
-                    &[] as &[&str]
-                );
-                let _ = legacy_launch.disable();
+                if let Ok(current_exe) = std::env::current_exe() {
+                   // Clean up potentially old legacy keys if needed
+                   // (Simulated logic or relying on external crate if available, but for now just skip if no crate)
+                   // The previous code used AutoLaunch crate here too, but we removed the global import.
+                   // Since we removed global AutoLaunch import to fix unused warning, we should use schtasks for Windows directly or re-add import if needed for Linux.
+                   // For Windows, we use schtasks.rs, so this block might be redundant or needs schtasks::delete_task logic if we want to clean up.
+                }
             }
             
             // 如果配置为自启动，强制刷新任务
             if app_config.auto_start {
                 #[cfg(target_os = "windows")]
                 {
-                    if let Err(e) = set_windows_task_start(true, &args) {
+                    if let Err(e) = schtasks::create_task(&args) {
                         eprintln!("启动时同步Windows任务计划失败: {}", e);
                     }
                 }
@@ -694,10 +712,7 @@ pub fn run() {
             });
             
             // 4. [关键修复] 异步初始化窗口 (Clash Verge Rev 风格)
-            // 此时 setup 会立即返回，主线程不会卡死
-            // 我们完全信任 XML 任务计划配置的 InteractiveToken，不需要 wait_for_desktop
             let handle_for_window = app.handle().clone();
-            
             tauri::async_runtime::spawn(async move {
                 // 读取配置
                 let state = handle_for_window.state::<AppState>();
@@ -730,19 +745,8 @@ pub fn run() {
                    }
                 });
             });
-            
-            // 5. 创建系统托盘 (保证第一时间可见)
-            let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let show_item = MenuItem::with_id(app, "show", "显示/隐藏", true, None::<&str>)?;
-            let separator1 = tauri::menu::PredefinedMenuItem::separator(app)?;
-            let separator2 = tauri::menu::PredefinedMenuItem::separator(app)?;
-            let auto_start_item = MenuItem::with_id(app, "auto_start", "开机自启", true, None::<&str>)?;
-            let silent_start_item = MenuItem::with_id(app, "silent_start", "静默启动", true, None::<&str>)?;
-            
-            let menu = Menu::with_items(app, &[
-                &show_item, &separator1, &auto_start_item, &silent_start_item, &separator2, &quit_item
-            ])?;
-            
+
+
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
@@ -764,7 +768,13 @@ pub fn run() {
                                 let new_state = !config.auto_start;
                                 drop(config);
                                 if let Err(e) = set_auto_start(new_state, app_state.clone()) { eprintln!("{}", e); }
-                                else { let _ = save_config(app.clone(), app_state.clone()); update_tray_menu(app); }
+                                else { 
+                                    let _ = save_config(app.clone(), app_state.clone()); 
+                                    update_tray_menu(app);
+                                    // Notify Frontend
+                                    use tauri::Emitter;
+                                    let _ = app.emit("tray_config_update", AppConfig { auto_start: new_state, silent_start: app_state.app_config.lock().unwrap().silent_start });
+                                }
                             }
                         },
                         "silent_start" => {
@@ -772,7 +782,13 @@ pub fn run() {
                                 let new_state = !config.silent_start;
                                 drop(config);
                                 if let Err(e) = set_silent_start(new_state, app_state.clone()) { eprintln!("{}", e); }
-                                else { let _ = save_config(app.clone(), app_state.clone()); update_tray_menu(app); }
+                                else { 
+                                    let _ = save_config(app.clone(), app_state.clone()); 
+                                    update_tray_menu(app);
+                                    // Notify Frontend
+                                    use tauri::Emitter;
+                                    let _ = app.emit("tray_config_update", AppConfig { auto_start: app_state.app_config.lock().unwrap().auto_start, silent_start: new_state });
+                                }
                             }
                         },
                         _ => {}

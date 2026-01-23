@@ -1,33 +1,41 @@
 {
     "topbar": {
         "online": "在线",
-        "listening_ports": "监听端口",
+        "listening_ports": "监听源",
         "forwarding_targets": "转发目标",
         "toggle_theme": "切换主题",
         "always_on_top": "置顶窗口",
         "settings": "设置",
+        "minimize": "最小化",
         "close": "关闭"
     },
     "traffic_monitor": {
         "title": "消息监视器",
+        "search": "查找 ......",
         "filter_logs": "筛选日志...",
         "auto_scroll": "自动滚动",
         "outgoing": "传出 (TX)",
-        "incoming": "传入 (RX)"
+        "incoming": "传入 (RX)",
+        "double_click_clear": "双击清空",
+        "clear_all": "清空全部"
     },
     "left_panel": {
         "injector_title": "OSC 快递测试",
         "address": "地址",
         "args": "参数",
         "send": "发送",
+        "send_tooltip": "发送 {args} 到 {address}",
         "system_title": "系统"
     },
     "settings": {
         "title": "系统配置",
-        "ws_host": "WebSocket 主机",
-        "listening_ports": "监听端口",
-        "add_port": "添加端口",
-        "forwarding_targets": "转发目标",
+        "system": "系统设置",
+        "auto_start": "开机自启",
+        "silent_start": "静默启动",
+        "ws_host": "WebSocket 服务端口",
+        "listening_ports": "来源",
+        "add_port": "添加来源",
+        "forwarding_targets": "目标",
         "add_target": "添加目标",
         "ui_scale": "界面缩放"
     },
@@ -37,12 +45,19 @@
         "disconnected": "⚠️ WebSocket 连接已断开，5秒后尝试重连...",
         "error": "❌ WebSocket 连接错误: {error}",
         "parse_error": "❌ 解析后端消息失败: {error}",
-        "client_connected": "🔌 客户端 #{clientId} 已连接 ({clientType} - {remoteAddr})",
+        "client_connected": "🔌 客户端 #{clientId} 已连接 [{clientType} @ {remoteAddr}]",
         "client_disconnected": "🔌 客户端 #{clientId} 已断开。",
         "config_loaded": "🚀 已从后端加载初始配置。",
+        "scale_factor_loaded_from_store": "📱 已从本地加载缩放比例: {factor}",
+        "scale_factor_loaded_from_backend": "🔧 已从后端获取初始缩放: {factor}",
+        "config_saved": "💾 配置保存成功！",
+        "config_save_error": "❌ 配置保存失败: {error}",
         "tray_config_loaded": "📋 托盘配置: 开机自启 {autoStart}, 静默启动 {silentStart}",
         "config_load_error": "❌ 加载初始配置失败: {error}",
         "tray_config_load_error": "❌ 加载托盘配置失败: {error}",
+        "websocket_not_connected": "⚠️ WebSocket 未连接，无法发送。",
+        "osc_address_empty": "⚠️ OSC 地址不能为空。",
+        "osc_send_error": "❌ 发送失败: {error}",
         "unknown_backend_msg": "后端 (未知类型 '{type}'): {data}"
     }
 }
