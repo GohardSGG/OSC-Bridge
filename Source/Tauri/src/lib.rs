@@ -248,15 +248,17 @@ fn format_ports(ports: &[String]) -> String {
 
 // 设置自启动
 #[tauri::command]
-fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
-    let mut config = state.app_config.lock().map_err(|e| e.to_string())?;
-    config.auto_start = enabled;
-    
-    let args = if config.silent_start {
-        vec!["--silent"]
-    } else {
-        vec![]
-    };
+fn set_auto_start(app: AppHandle, enabled: bool, state: State<AppState>) -> Result<(), String> {
+    let args = {
+        let mut config = state.app_config.lock().map_err(|e| e.to_string())?;
+        config.auto_start = enabled;
+        
+        if config.silent_start {
+            vec!["--silent"]
+        } else {
+            vec![]
+        }
+    }; // Lock dropped here
     
     #[cfg(target_os = "windows")]
     {
@@ -265,45 +267,53 @@ fn set_auto_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-    let new_auto_launch = AutoLaunch::new(
-        "OSC-Bridge",
-        &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
-        true, // 在macOS上使用Launch Agent
-        &args,
-    );
-    #[cfg(not(target_os = "macos"))]
-    let new_auto_launch = AutoLaunch::new(
-        "OSC-Bridge",
-        &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
-        &args,
-    );
+        let new_auto_launch = AutoLaunch::new(
+            "OSC-Bridge",
+            &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
+            true, // 在macOS上使用Launch Agent
+            &args,
+        );
+        #[cfg(not(target_os = "macos"))]
+        let new_auto_launch = AutoLaunch::new(
+            "OSC-Bridge",
+            &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
+            &args,
+        );
+        
+        if enabled {
+            new_auto_launch.enable().map_err(|e| format!("启用自启动失败: {}", e))?;
+        } else {
+            new_auto_launch.disable().map_err(|e| format!("禁用自启动失败: {}", e))?;
+        }
+        
+        let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
+        *auto_launch_guard = Some(new_auto_launch);
+    } 
     
-    if enabled {
-        new_auto_launch.enable().map_err(|e| format!("启用自启动失败: {}", e))?;
-    } else {
-        new_auto_launch.disable().map_err(|e| format!("禁用自启动失败: {}", e))?;
-    }
-    
-    let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
-    *auto_launch_guard = Some(new_auto_launch);
-    } // End of macos block
-    
+    update_tray_menu(&app);
     Ok(())
 }
 
 // 设置静默启动
 #[tauri::command]
-fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String> {
-    let mut config = state.app_config.lock().map_err(|e| e.to_string())?;
-    config.silent_start = enabled;
-    
-    if config.auto_start {
-        let args = if enabled {
-            vec!["--silent"]
-        } else {
-            vec![]
-        };
+fn set_silent_start(app: AppHandle, enabled: bool, state: State<AppState>) -> Result<(), String> {
+    let (should_update_task, args) = {
+        let mut config = state.app_config.lock().map_err(|e| e.to_string())?;
+        config.silent_start = enabled;
         
+        if config.auto_start {
+            let args = if enabled {
+                vec!["--silent"]
+            } else {
+                vec![]
+            };
+            (true, args)
+        } else {
+            (false, vec![])
+        }
+    }; // Lock dropped here
+    
+    if should_update_task {
         #[cfg(target_os = "windows")]
         {
              set_windows_task_start(true, &args)?;
@@ -311,21 +321,21 @@ fn set_silent_start(enabled: bool, state: State<AppState>) -> Result<(), String>
 
         #[cfg(target_os = "macos")]
         {
-        let new_auto_launch = AutoLaunch::new(
-            "OSC-Bridge",
-            &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
-            true, // 在macOS上使用Launch Agent
-            &args,
-        );
-
-        
-        new_auto_launch.enable().map_err(|e| format!("更新自启动配置失败: {}", e))?;
-        
-        let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
-        *auto_launch_guard = Some(new_auto_launch);
+            let new_auto_launch = AutoLaunch::new(
+                "OSC-Bridge",
+                &std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy(),
+                true, // 在macOS上使用Launch Agent
+                &args,
+            );
+            
+            new_auto_launch.enable().map_err(|e| format!("更新自启动配置失败: {}", e))?;
+            
+            let mut auto_launch_guard = state.auto_launch.lock().map_err(|e| e.to_string())?;
+            *auto_launch_guard = Some(new_auto_launch);
         }
     }
     
+    update_tray_menu(&app);
     Ok(())
 }
 
@@ -767,7 +777,7 @@ pub fn run() {
                              if let Ok(config) = app_state.app_config.lock() {
                                 let new_state = !config.auto_start;
                                 drop(config);
-                                if let Err(e) = set_auto_start(new_state, app_state.clone()) { eprintln!("{}", e); }
+                                if let Err(e) = set_auto_start(app.clone(), new_state, app_state.clone()) { eprintln!("{}", e); }
                                 else { 
                                     let _ = save_config(app.clone(), app_state.clone()); 
                                     update_tray_menu(app);
@@ -781,7 +791,7 @@ pub fn run() {
                              if let Ok(config) = app_state.app_config.lock() {
                                 let new_state = !config.silent_start;
                                 drop(config);
-                                if let Err(e) = set_silent_start(new_state, app_state.clone()) { eprintln!("{}", e); }
+                                if let Err(e) = set_silent_start(app.clone(), new_state, app_state.clone()) { eprintln!("{}", e); }
                                 else { 
                                     let _ = save_config(app.clone(), app_state.clone()); 
                                     update_tray_menu(app);
