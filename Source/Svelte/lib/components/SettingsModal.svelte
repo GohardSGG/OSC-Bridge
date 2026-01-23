@@ -145,7 +145,7 @@
             : ''}"
     >
         <div
-            class="settings-modal w-[600px] max-w-[95vw] border-2 rounded-sm flex flex-col overflow-hidden shadow-2xl {modalBg} {isClosing
+            class="settings-modal w-[600px] max-w-[95vw] max-h-[85vh] border-2 rounded-sm flex flex-col overflow-hidden shadow-2xl {modalBg} {isClosing
                 ? 'closing'
                 : ''}"
         >
@@ -178,21 +178,77 @@
             <!-- Modal Content (Denser Layout) -->
             <div class="flex-1 overflow-y-auto p-4 space-y-6 {contentBg}">
                 <!-- Group 1: General Settings -->
+                <!-- Group 1: General Settings (Refactored Layout) -->
                 <div class="grid grid-cols-2 gap-4">
-                    <!-- Auto Start -->
-                    <div class="space-y-1.5">
-                        <label
-                            class="text-[10px] uppercase font-bold tracking-wider {$isDarkMode
-                                ? 'text-slate-400'
-                                : 'text-slate-500'}"
-                            >{$t("settings.system") || "SYSTEM"}</label
-                        >
-                        <div class="flex flex-col gap-2">
+                    <!-- Left Column: Language & Interface Scaling -->
+                    <div class="flex flex-col gap-4">
+                        <!-- Language -->
+                        <div class="space-y-1.5">
+                            <label
+                                class="text-[10px] uppercase font-bold tracking-wider {$isDarkMode
+                                    ? 'text-slate-400'
+                                    : 'text-slate-500'}">{"Language"}</label
+                            >
+                            <button
+                                on:click={toggleLanguage}
+                                class="w-full h-8 px-3 rounded-sm text-xs font-mono border-2 flex items-center justify-between transition-all {$isDarkMode
+                                    ? 'bg-[#09090b] border-slate-700 text-slate-200 hover:border-emerald-500/50'
+                                    : 'bg-white border-slate-300 text-slate-800 hover:border-emerald-500/50'}"
+                            >
+                                <span
+                                    >{$locale === "en"
+                                        ? "English"
+                                        : "简体中文"}</span
+                                >
+                                <div class="flex gap-1">
+                                    <span
+                                        class="text-[9px] uppercase opacity-50 font-sans font-bold"
+                                        >{$locale === "en" ? "EN" : "CN"}</span
+                                    >
+                                </div>
+                            </button>
+                        </div>
+
+                        <!-- UI Scale -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label
+                                    class="text-[10px] uppercase font-bold tracking-wider {$isDarkMode
+                                        ? 'text-slate-400'
+                                        : 'text-slate-500'}"
+                                    >{$t("settings.ui_scale")}</label
+                                >
+                                <span
+                                    class="text-[10px] font-mono {sectionLabel}"
+                                    >{Math.round(localUiScale * 100)}%</span
+                                >
+                            </div>
+                            <div class="h-8 flex items-center">
+                                <input
+                                    type="range"
+                                    min="0.75"
+                                    max="1.5"
+                                    step="0.05"
+                                    bind:value={localUiScale}
+                                    class="w-full h-1.5 rounded-none appearance-none cursor-pointer {$isDarkMode
+                                        ? 'bg-slate-800 accent-emerald-500'
+                                        : 'bg-slate-200 accent-emerald-600'}"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Auto Start & Silent Start -->
+                    <div class="flex flex-col gap-8">
+                        <!-- Spacer to align with Language label approx height if needed, but typically cleaner without if not strict -->
+                        <!-- Auto Start Group (No Label) -->
+                        <div class="flex flex-col gap-6 pt-[1.6rem]">
                             <TechToggle
                                 label={$t("settings.auto_start") ||
                                     "Auto Start"}
                                 checked={$autoStartEnabled}
                                 isDark={$isDarkMode}
+                                labelClass="text-xs"
                                 on:change={(e) => setAutoStart(e.detail)}
                             />
                             <TechToggle
@@ -200,60 +256,8 @@
                                     "Silent Start"}
                                 checked={$silentStartEnabled}
                                 isDark={$isDarkMode}
+                                labelClass="text-xs"
                                 on:change={(e) => setSilentStart(e.detail)}
-                            />
-                        </div>
-                    </div>
-                    <!-- Language -->
-                    <div class="space-y-1.5">
-                        <label
-                            class="text-[10px] uppercase font-bold tracking-wider {$isDarkMode
-                                ? 'text-slate-400'
-                                : 'text-slate-500'}">{"Language"}</label
-                        >
-                        <button
-                            on:click={toggleLanguage}
-                            class="w-full h-8 px-3 rounded-sm text-xs font-mono border-2 flex items-center justify-between transition-all {$isDarkMode
-                                ? 'bg-[#09090b] border-slate-700 text-slate-200 hover:border-emerald-500/50'
-                                : 'bg-white border-slate-300 text-slate-800 hover:border-emerald-500/50'}"
-                        >
-                            <span
-                                >{$locale === "en"
-                                    ? "English"
-                                    : "简体中文"}</span
-                            >
-                            <div class="flex gap-1">
-                                <span
-                                    class="text-[9px] uppercase opacity-50 font-sans font-bold"
-                                    >{$locale === "en" ? "EN" : "CN"}</span
-                                >
-                            </div>
-                        </button>
-                    </div>
-
-                    <!-- UI Scale -->
-                    <div class="space-y-1.5">
-                        <div class="flex items-center justify-between">
-                            <label
-                                class="text-[10px] uppercase font-bold tracking-wider {$isDarkMode
-                                    ? 'text-slate-400'
-                                    : 'text-slate-500'}"
-                                >{$t("settings.ui_scale")}</label
-                            >
-                            <span class="text-[10px] font-mono {sectionLabel}"
-                                >{Math.round(localUiScale * 100)}%</span
-                            >
-                        </div>
-                        <div class="h-8 flex items-center">
-                            <input
-                                type="range"
-                                min="0.75"
-                                max="1.5"
-                                step="0.05"
-                                bind:value={localUiScale}
-                                class="w-full h-1.5 rounded-none appearance-none cursor-pointer {$isDarkMode
-                                    ? 'bg-slate-800 accent-emerald-500'
-                                    : 'bg-slate-200 accent-emerald-600'}"
                             />
                         </div>
                     </div>

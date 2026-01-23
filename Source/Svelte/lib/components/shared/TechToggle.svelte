@@ -5,6 +5,8 @@
     export let label: string;
     export let isDark: boolean;
 
+    export let labelClass: string = "text-[10px]";
+
     const dispatch = createEventDispatcher();
 
     function toggle() {
@@ -13,23 +15,23 @@
     }
 </script>
 
-<button
-    class="flex items-center justify-between w-full group cursor-pointer"
-    on:click={toggle}
->
+<!-- Changed from button to div to remove full-width click -->
+<div class="flex items-center justify-between w-full group">
     <span
-        class="text-[10px] uppercase font-bold tracking-wider transition-colors {isDark
-            ? 'text-slate-400 group-hover:text-slate-300'
-            : 'text-slate-500 group-hover:text-slate-700'}">{label}</span
+        class="uppercase font-bold tracking-wider transition-colors {labelClass} {isDark
+            ? 'text-slate-400'
+            : 'text-slate-500'}">{label}</span
     >
 
-    <!-- Toggle Track -->
-    <div
-        class="w-8 h-4 rounded-sm border transition-colors relative {checked
+    <!-- Toggle Track (Clickable Area) -->
+    <button
+        on:click={toggle}
+        class="w-8 h-4 rounded-sm border transition-colors relative cursor-pointer {checked
             ? 'bg-emerald-500/20 border-emerald-500'
             : isDark
-              ? 'bg-slate-800 border-slate-700'
-              : 'bg-slate-200 border-slate-300'}"
+              ? 'bg-slate-800 border-slate-700 hover:border-slate-600'
+              : 'bg-slate-200 border-slate-300 hover:border-slate-400'}"
+        type="button"
     >
         <!-- Toggle Thumb -->
         <div
@@ -39,5 +41,5 @@
                   ? 'right-[17px] text-slate-500'
                   : 'right-[17px] text-slate-400'}"
         ></div>
-    </div>
-</button>
+    </button>
+</div>
