@@ -8,6 +8,7 @@
   import LeftPanel from "$lib/components/LeftPanel.svelte";
   import RightPanel from "$lib/components/RightPanel.svelte";
   import SettingsModal from "$lib/components/SettingsModal.svelte";
+  import StatusBar from "$lib/components/StatusBar.svelte";
 
   onMount(async () => {
     await loadInitialConfig();
@@ -39,15 +40,18 @@
   </div>
 {:else}
   <div
-    class="h-screen w-screen font-sans flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} border-l-[3px] border-t-[3px] border-r-[4px] border-b-[4px] border-zinc-800"
+    class="h-screen w-screen font-sans flex flex-col overflow-hidden transition-colors duration-300 {chassisBg} border-l-[3px] border-t-[3px] border-r-[4px] border-b-[4px] border-zinc-900"
   >
     <SettingsModal />
 
     <TopBar />
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative z-0">
       <LeftPanel />
       <RightPanel />
     </div>
+
+    <!-- New Status Bar -->
+    <StatusBar />
   </div>
 {/if}

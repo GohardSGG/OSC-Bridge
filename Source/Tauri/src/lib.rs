@@ -21,7 +21,7 @@ fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<WebviewWi
         .inner_size(900.0, 630.0)
         .decorations(false)
         .transparent(false) // 关闭透明以修复渲染瑕疵
-        .shadow(true)       // 启用系统原生窗口阴影
+        .shadow(false)       // 禁用系统阴影，只保留我们自己的边框
         .visible(false); // 初始不可见，防止闪烁
         
     // 这里可以参考 clash-verge-rev 注入初始化脚本，目前暂不需要

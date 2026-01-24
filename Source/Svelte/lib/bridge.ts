@@ -10,7 +10,8 @@ import {
   settingsWsUrl,
   autoStartEnabled,
   silentStartEnabled,
-  uiScale
+  uiScale,
+  isConnected
 } from './stores/stores';
 import { listen } from '@tauri-apps/api/event';
 
@@ -69,6 +70,7 @@ export function initializeBridge(customUrl?: string) {
 
   websocket.onopen = () => {
     addSystemLog('success', 'logs.connected');
+    isConnected.set(true);
   };
 
   websocket.onmessage = (event) => {
@@ -82,6 +84,7 @@ export function initializeBridge(customUrl?: string) {
 
   websocket.onclose = () => {
     addSystemLog('warning', 'logs.disconnected');
+    isConnected.set(false);
     setTimeout(() => initializeBridge(url.replace('/logs', '')), 5000);
   };
 

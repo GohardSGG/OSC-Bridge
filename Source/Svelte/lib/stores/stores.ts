@@ -16,6 +16,7 @@ export const isSettingsOpen = writable(false);
 export const isAutoScroll = writable(true);
 export const isAlwaysOnTop = writable(false);
 export const uiScale = writable(1.0);
+export const isConnected = writable(false);
 
 // --- Log Stores ---
 export const systemLogs = writable<SystemLogEntry[]>([]);
@@ -39,7 +40,7 @@ export const filteredSentLogs = derived(
       return $oscSentLogs;
     }
     const lowerCaseTerm = $sentSearchTerm.toLowerCase();
-    return $oscSentLogs.filter(log => 
+    return $oscSentLogs.filter(log =>
       log.path.toLowerCase().includes(lowerCaseTerm) ||
       log.val.toLowerCase().includes(lowerCaseTerm) ||
       (log.target && log.target.toLowerCase().includes(lowerCaseTerm))
@@ -54,7 +55,7 @@ export const filteredRecvLogs = derived(
       return $oscRecvLogs;
     }
     const lowerCaseTerm = $recvSearchTerm.toLowerCase();
-    return $oscRecvLogs.filter(log => 
+    return $oscRecvLogs.filter(log =>
       log.path.toLowerCase().includes(lowerCaseTerm) ||
       log.val.toLowerCase().includes(lowerCaseTerm) ||
       (log.source && log.source.toLowerCase().includes(lowerCaseTerm))

@@ -1,13 +1,18 @@
 <script lang="ts">
   import { t } from "svelte-i18n";
-  import { onMount } from "svelte";
   import {
     isDarkMode,
     isSettingsOpen,
     isAlwaysOnTop,
+    settingsListenPorts,
+    settingsForwardTargets,
   } from "$lib/stores/stores";
   import { hideWindow, setAlwaysOnTop, minimizeWindow } from "$lib/bridge";
-  import { invoke } from "@tauri-apps/api/core";
+
+  // Components
+  import StatPill from "./shared/StatPill.svelte";
+
+  // Icons
   import Server from "$lib/icons/Server.svelte";
   import Radio from "$lib/icons/Radio.svelte";
   import Sun from "$lib/icons/Sun.svelte";
@@ -17,22 +22,9 @@
   import X from "$lib/icons/X.svelte";
   import Pin from "$lib/icons/Pin.svelte";
 
-  let listenPorts = "Loading...";
-  let targetPorts = "Loading...";
-
-  onMount(async () => {
-    try {
-      const ports: { listen: string; target: string } = await invoke(
-        "get_formatted_ports",
-      );
-      listenPorts = ports.listen || "Not configured";
-      targetPorts = ports.target || "Not configured";
-    } catch (e) {
-      console.error("Failed to get formatted ports:", e);
-      listenPorts = "Error";
-      targetPorts = "Error";
-    }
-  });
+  // Assets
+  // @ts-ignore
+  import appIcon from "../../assets/app-icon.png";
 
   const toggleTheme = () => isDarkMode.update((n) => !n);
 
@@ -47,64 +39,50 @@
 
 <div
   data-tauri-drag-region
-  class="h-8 flex items-center px-3 justify-between border-b-2 select-none shrink-0 {$isDarkMode
+  class="h-8 flex items-center px-2 justify-between border-b-2 select-none shrink-0 relative z-40 {$isDarkMode
     ? 'bg-[#000000] border-slate-800'
     : 'bg-slate-800 border-slate-900'}"
 >
-  <div
-    class="flex items-center gap-4 text-[10px] font-sans text-slate-400"
-    data-tauri-drag-region
-  >
-    <div
-      class="flex items-center gap-2 text-emerald-400"
-      data-tauri-drag-region
-    >
-      <div class="w-1.5 h-1.5 bg-emerald-500 animate-pulse"></div>
-      <span class="font-bold tracking-wider">{$t("topbar.online")}</span>
-    </div>
+  <!-- Left: Logo & Title -->
+  <div class="flex items-center gap-2 w-[200px]" data-tauri-drag-region>
+    <!-- Icon: Authentic App Icon -->
+    <img src={appIcon} alt="Logo" class="w-6 h-6 object-contain" />
 
-    <!-- Listen Ports -->
-    <span class="opacity-30">|</span>
+    <!-- Typographic Logo: Authentic KONTAKT MAX style -->
     <div
-      class="relative group flex items-center gap-1.5 min-w-0"
+      class="font-bold text-lg tracking-tighter flex items-center gap-1 select-none text-white"
       data-tauri-drag-region
     >
-      <Server size={10} class="shrink-0" />
-      <span class="truncate max-w-[200px] cursor-help">{listenPorts}</span>
-      <div
-        class="absolute top-full left-0 mt-2 hidden group-hover:block z-50 w-max max-w-[300px] p-2 rounded border shadow-xl text-xs whitespace-pre-wrap leading-relaxed {$isDarkMode
-          ? 'bg-slate-800 border-slate-700 text-slate-300'
-          : 'bg-white border-slate-200 text-slate-600'}"
-      >
-        <div class="font-bold mb-1 opacity-50">
-          {$t("topbar.listening_ports")}:
-        </div>
-        {listenPorts.split("|").join("\n")}
-      </div>
-    </div>
-
-    <!-- Target Ports -->
-    <span class="opacity-30">|</span>
-    <div
-      class="relative group flex items-center gap-1.5 min-w-0"
-      data-tauri-drag-region
-    >
-      <Radio size={10} class="shrink-0" />
-      <span class="truncate max-w-[200px] cursor-help">{targetPorts}</span>
-      <div
-        class="absolute top-full left-0 mt-2 hidden group-hover:block z-50 w-max max-w-[300px] p-2 rounded border shadow-xl text-xs whitespace-pre-wrap leading-relaxed {$isDarkMode
-          ? 'bg-slate-800 border-slate-700 text-slate-300'
-          : 'bg-white border-slate-200 text-slate-600'}"
-      >
-        <div class="font-bold mb-1 opacity-50">
-          {$t("topbar.forwarding_targets")}:
-        </div>
-        {targetPorts.split("|").join("\n")}
-      </div>
+      OSC<span class="font-light text-lg text-slate-400"> BRIDGE </span>
     </div>
   </div>
 
-  <div class="flex items-center gap-3">
+  <!-- Center: Stats Pills -->
+  <div class="flex items-center gap-4 h-full" data-tauri-drag-region>
+    <StatPill
+      icon={Server}
+      label="Listeners"
+      count={$settingsListenPorts.length}
+      items={$settingsListenPorts}
+      colorClass="text-sky-400"
+      borderColorClass="group-hover:border-sky-500/50"
+    />
+
+    <div class="w-px h-3 bg-slate-700/50"></div>
+
+    <StatPill
+      icon={Radio}
+      label="Targets"
+      count={$settingsForwardTargets.length}
+      items={$settingsForwardTargets}
+      colorClass="text-orange-400"
+      borderColorClass="group-hover:border-orange-500/50"
+    />
+  </div>
+
+  <!-- Right: Window Controls -->
+  <div class="flex items-center gap-3 w-[180px] justify-end">
+    <!-- Tools -->
     <button
       on:click={toggleAlwaysOnTop}
       class="transition-colors {$isAlwaysOnTop
@@ -140,7 +118,7 @@
     <button
       on:click={minimizeWindow}
       class="text-slate-400 hover:text-white cursor-pointer transition-colors"
-      title={$t("topbar.minimize") || "Minimize"}
+      title={$t("topbar.minimize")}
     >
       <Minimize size={12} />
     </button>
